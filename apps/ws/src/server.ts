@@ -50,21 +50,27 @@ export function createServer(port: number): WebSocketServer {
           rooms.get(msg.roomId)!.add(ws)
 
           const existing = await store.get(msg.roomId)
+
+          // Guard: client may have disconnected during the await
+          if (ws.readyState !== WebSocket.OPEN) return
+
           if (existing !== undefined) {
-            // Room exists — sync this client to current state
             send(ws, { type: 'sync', slug: existing })
           } else if (msg.articleSlug) {
-            // New room — create with the provided slug and sync back
             await store.set(msg.roomId, msg.articleSlug)
             send(ws, { type: 'sync', slug: msg.articleSlug })
           }
 
           broadcastParticipantCount(msg.roomId)
         } else if (msg.type === 'navigate') {
-          await store.set(msg.roomId, msg.slug)
-          broadcast(msg.roomId, { type: 'navigate', slug: msg.slug })
+          // Only allow navigating in the room this client joined
+          if (!currentRoomId || msg.roomId !== currentRoomId) return
+          await store.set(currentRoomId, msg.slug)
+          broadcast(currentRoomId, { type: 'navigate', slug: msg.slug })
         }
-      })()
+      })().catch((err) => {
+        console.error('[ws] message handler error:', err)
+      })
     })
 
     ws.on('close', () => {
@@ -79,7 +85,9 @@ export function createServer(port: number): WebSocketServer {
         } else {
           broadcastParticipantCount(currentRoomId)
         }
-      })()
+      })().catch((err) => {
+        console.error('[ws] close handler error:', err)
+      })
     })
 
     ws.on('error', () => {
