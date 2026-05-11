@@ -19,7 +19,7 @@ export function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleV
     const target = (e.target as HTMLElement).closest('[data-wiki-slug]') as HTMLElement | null
     if (!target) return
     // Don't intercept middle-click or Ctrl+click (open in new tab)
-    if ((e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey || (e as MouseEvent).button !== 0) return
+    if (e.ctrlKey || e.metaKey || e.button !== 0) return
     e.preventDefault()
     const slug = target.dataset.wikiSlug
     if (slug) onClickRef.current(slug)
@@ -30,7 +30,7 @@ export function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleV
     if (!el) return
     el.addEventListener('click', handleClick)
     return () => el.removeEventListener('click', handleClick)
-  }, [handleClick, html]) // re-register when html changes (new article DOM)
+  }, [handleClick]) // listener is on the stable container div, not the injected content
 
   // Scroll to top on article change
   useEffect(() => {
@@ -41,7 +41,7 @@ export function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleV
     <div className="article-container">
       <div
         ref={containerRef}
-        className={`${styles.article} ${isTransitioning ? styles.transitioning : ''}`}
+        className={[styles.article, isTransitioning && styles.transitioning].filter(Boolean).join(' ')}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
