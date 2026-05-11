@@ -81,6 +81,9 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
 
     ws.onclose = () => {
       if (!mountedRef.current) return
+      // Guard: if connect() already replaced this WS with a newer one, don't
+      // null the ref or touch retry state — the new WS owns those.
+      if (wsRef.current !== ws) return
       wsRef.current = null
       if (retriesRef.current < MAX_RETRIES) {
         retriesRef.current++
