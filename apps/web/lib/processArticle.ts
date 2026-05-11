@@ -17,21 +17,8 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
     ? h1Match[1].replace(/<[^>]+>/g, '').trim()
     : slug.replace(/_/g, ' ')
 
-  // Rewrite internal wiki links: href="/wiki/Slug" → href="#" data-wiki-slug="Slug"
-  // Handles fragments (/wiki/Slug#Section) and query strings (/wiki/Slug?action=...)
-  let html = bodyHtml.replace(
-    /href="\/wiki\/([^"#?]+)[^"]*"/g,
-    'href="#" data-wiki-slug="$1"',
-  )
-
-  // External links open in new tab
-  html = html.replace(
-    /(<a\s[^>]*href="https?:\/\/[^"]*"[^>]*)>/gi,
-    '$1 target="_blank" rel="noopener noreferrer">',
-  )
-
-  // Sanitize: allow a broad but safe set of tags, strip scripts/styles/chrome
-  html = sanitizeHtml(html, {
+  // Sanitize and transform in one pass via sanitize-html
+  const html = sanitizeHtml(bodyHtml, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
       'img', 'figure', 'figcaption',
       'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'col', 'colgroup',
@@ -49,7 +36,42 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
       colgroup: ['span'],
       abbr: ['title'],
     },
+    transformTags: {
+      a(tagName, attribs) {
+        const href = attribs.href ?? ''
+
+        // Internal wiki links: both Parsoid format (./Slug) and classic (/wiki/Slug)
+        // Substring after #fragment and ?query are stripped, result is URI-decoded
+        const internalMatch = href.match(/^(?:\.\/|\/wiki\/)([^#?]*)/)
+        if (internalMatch) {
+          let wikiSlug: string
+          try {
+            wikiSlug = decodeURIComponent(internalMatch[1])
+          } catch {
+            wikiSlug = internalMatch[1]
+          }
+          return {
+            tagName,
+            attribs: { ...attribs, href: '#', 'data-wiki-slug': wikiSlug },
+          }
+        }
+
+        // External links: ensure target=_blank and merge rel values safely
+        if (/^https?:\/\//i.test(href)) {
+          const relParts = (attribs.rel ?? '').split(/\s+/).filter(Boolean)
+          if (!relParts.includes('noopener')) relParts.push('noopener')
+          if (!relParts.includes('noreferrer')) relParts.push('noreferrer')
+          return {
+            tagName,
+            attribs: { ...attribs, target: '_blank', rel: relParts.join(' ') },
+          }
+        }
+
+        return { tagName, attribs }
+      },
+    },
     exclusiveFilter: (frame) => {
+      // Substring matching is intentional — catches all navbox/editsection variants
       const cls = frame.attribs?.class ?? ''
       const id = frame.attribs?.id ?? ''
       return (
