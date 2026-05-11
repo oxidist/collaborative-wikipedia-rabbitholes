@@ -1,0 +1,56 @@
+.article {
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+.transitioning {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Wikipedia article styling */
+.article :global(a[data-wiki-slug]) {
+  color: #3b6fce;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.article :global(a[data-wiki-slug]:hover) {
+  text-decoration: underline;
+}
+
+.article :global(a:not([data-wiki-slug])) {
+  color: #3b6fce;
+}
+
+.article :global(img) {
+  max-width: 100%;
+  height: auto;
+}
+
+.article :global(table) {
+  border-collapse: collapse;
+  font-size: 0.9em;
+  margin: 1em 0;
+}
+
+.article :global(th),
+.article :global(td) {
+  border: 1px solid #a2a9b1;
+  padding: 6px 10px;
+  vertical-align: top;
+}
+
+.article :global(th) {
+  background: #eaecf0;
+}
+
+.article :global(figure) {
+  margin: 1em 0;
+}
+
+.article :global(figcaption) {
+  font-size: 0.85em;
+  color: #555;
+  margin-top: 4px;
+}
