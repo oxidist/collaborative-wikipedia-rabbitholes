@@ -28,7 +28,7 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
       '*': ['class', 'id'],
-      a: ['href', 'data-wiki-slug', 'class', 'id', 'rel', 'target'],
+      a: ['href', 'data-wiki-slug', 'class', 'id', 'rel', 'target', 'tabindex'],
       img: ['src', 'srcset', 'alt', 'width', 'height', 'class', 'loading'],
       td: ['colspan', 'rowspan', 'class'],
       th: ['colspan', 'rowspan', 'scope', 'class'],
@@ -50,9 +50,12 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
           } catch {
             wikiSlug = internalMatch[1]
           }
+          // No href — prevents hash/router navigation when clicked.
+          // ArticleView intercepts via data-wiki-slug; tabindex keeps keyboard access.
+          const { href: _removed, ...rest } = attribs
           return {
             tagName,
-            attribs: { ...attribs, href: '#', 'data-wiki-slug': wikiSlug },
+            attribs: { ...rest, tabindex: '0', 'data-wiki-slug': wikiSlug },
           }
         }
 

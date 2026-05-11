@@ -19,19 +19,19 @@ describe('processArticle', () => {
     expect(result.title).toBe('Six degrees of Wikipedia')
   })
 
-  it('rewrites classic /wiki/ links to href="#" with data-wiki-slug', () => {
+  it('rewrites classic /wiki/ links to data-wiki-slug (no href)', () => {
     const html = '<a href="/wiki/Cephalopod">Cephalopod</a>'
     const result = processArticle(html, 'Octopus')
     expect(result.html).toContain('data-wiki-slug="Cephalopod"')
-    expect(result.html).toContain('href="#"')
     expect(result.html).not.toContain('href="/wiki/')
+    expect(result.html).not.toContain('href="#"')
   })
 
   it('rewrites Parsoid ./Slug format links (actual Wikipedia API output)', () => {
     const html = '<a href="./Cephalopod">Cephalopod</a>'
     const result = processArticle(html, 'Octopus')
     expect(result.html).toContain('data-wiki-slug="Cephalopod"')
-    expect(result.html).toContain('href="#"')
+    expect(result.html).not.toContain('href=')
   })
 
   it('strips fragment from rewritten link slug', () => {

@@ -25,6 +25,13 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
 
+  // Stable refs for roomId/initialSlug so connect() never needs to be recreated
+  // when React re-renders (e.g. due to router state changes from href="#" clicks).
+  const roomIdRef = useRef(roomId)
+  roomIdRef.current = roomId
+  const initialSlugRef = useRef(initialSlug)
+  initialSlugRef.current = initialSlug
+
   const mountedRef = useRef(true)
   useEffect(() => {
     mountedRef.current = true
@@ -38,6 +45,9 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
   const [participantCount, setParticipantCount] = useState(1)
   const [connectionLost, setConnectionLost] = useState(false)
 
+  // connect has [] deps — it never changes identity, so the useEffect below
+  // runs exactly once at mount (plus Strict Mode's simulated unmount/remount).
+  // roomId and initialSlug are read from refs at the moment they're needed.
   const connect = useCallback(() => {
     const ws = new WebSocket(WS_URL)
     wsRef.current = ws
@@ -46,7 +56,11 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
       if (!mountedRef.current) return
       retriesRef.current = 0
       setConnectionLost(false)
-      const msg: ClientMessage = { type: 'join', roomId, articleSlug: initialSlug || undefined }
+      const msg: ClientMessage = {
+        type: 'join',
+        roomId: roomIdRef.current,
+        articleSlug: initialSlugRef.current || undefined,
+      }
       ws.send(JSON.stringify(msg))
     }
 
@@ -80,12 +94,11 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     ws.onerror = () => {
       ws.close()
     }
-  }, [roomId, initialSlug]) // initialSlug intentionally stable after mount
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     connect()
     return () => {
-      // Prevent reconnect on unmount
       retriesRef.current = MAX_RETRIES
       if (reconnectTimerRef.current !== null) {
         clearTimeout(reconnectTimerRef.current)
@@ -96,10 +109,10 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
 
   const navigate = useCallback((slug: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const msg: ClientMessage = { type: 'navigate', roomId, slug }
+      const msg: ClientMessage = { type: 'navigate', roomId: roomIdRef.current, slug }
       wsRef.current.send(JSON.stringify(msg))
     }
-  }, [roomId])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const retry = useCallback(() => {
     if (reconnectTimerRef.current !== null) {
