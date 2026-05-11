@@ -3,22 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { nanoid } from 'nanoid'
-
-function parseWikiSlug(input: string): string | null {
-  const trimmed = input.trim()
-  try {
-    const url = new URL(trimmed)
-    if (!url.hostname.endsWith('wikipedia.org')) return null
-    const match = url.pathname.match(/^\/wiki\/(.+)$/)
-    return match ? decodeURIComponent(match[1]) : null
-  } catch {
-    // Not a URL — treat as bare slug if it looks like one (no slashes)
-    if (trimmed.length > 0 && !trimmed.includes('/') && !trimmed.includes(' ')) {
-      return trimmed
-    }
-    return null
-  }
-}
+import { parseWikiSlug } from '../lib/parseWikiSlug'
 
 export default function HomePage() {
   const router = useRouter()
@@ -53,8 +38,9 @@ export default function HomePage() {
           placeholder="https://en.wikipedia.org/wiki/Octopus"
           autoFocus
           autoComplete="off"
+          aria-describedby="wiki-url-error"
         />
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <p id="wiki-url-error" className="error" role="alert">{error}</p>}
         <button type="submit">Start session</button>
       </form>
     </main>
