@@ -25,6 +25,16 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
 
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [participantCount, setParticipantCount] = useState(1)
   const [connectionLost, setConnectionLost] = useState(false)
 
@@ -33,6 +43,7 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     wsRef.current = ws
 
     ws.onopen = () => {
+      if (!mountedRef.current) return
       retriesRef.current = 0
       setConnectionLost(false)
       const msg: ClientMessage = { type: 'join', roomId, articleSlug: initialSlug || undefined }
@@ -40,6 +51,7 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     }
 
     ws.onmessage = (event: MessageEvent) => {
+      if (!mountedRef.current) return
       let msg: ServerMessage
       try {
         msg = JSON.parse(event.data as string) as ServerMessage
@@ -54,11 +66,12 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     }
 
     ws.onclose = () => {
+      if (!mountedRef.current) return
       wsRef.current = null
       if (retriesRef.current < MAX_RETRIES) {
         retriesRef.current++
         const delay = Math.min(500 * Math.pow(2, retriesRef.current), 8000)
-        setTimeout(connect, delay)
+        reconnectTimerRef.current = setTimeout(connect, delay)
       } else {
         setConnectionLost(true)
       }
@@ -74,6 +87,9 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     return () => {
       // Prevent reconnect on unmount
       retriesRef.current = MAX_RETRIES
+      if (reconnectTimerRef.current !== null) {
+        clearTimeout(reconnectTimerRef.current)
+      }
       wsRef.current?.close()
     }
   }, [connect])
@@ -86,6 +102,10 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
   }, [roomId])
 
   const retry = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = null
+    }
     retriesRef.current = 0
     setConnectionLost(false)
     connect()
