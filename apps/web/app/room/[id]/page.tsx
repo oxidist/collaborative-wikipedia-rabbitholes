@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, Suspense } from 'react'
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import type { ServerMessage } from '@wikihole/types'
 import { ArticleView } from '@/components/ArticleView'
@@ -32,9 +32,20 @@ function RoomContent() {
   const [isTransitioning, setIsTransitioning] = useState(false)
   // Ref to current article — used to push to history without a setState dependency
   const articleRef = useRef<ArticleData | null>(null)
+  // Ref tracking which slug is currently being fetched — prevents double-load race
+  const loadingSlugRef = useRef<string | null>(null)
+  // Ref for the isTransitioning clear timer — prevents state updates on unmounted component
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+    }
+  }, [])
 
   const loadArticle = useCallback(async (slug: string) => {
     if (!slug) return
+    loadingSlugRef.current = slug
     setArticleError(false)
     setIsTransitioning(true)
     try {
@@ -48,14 +59,18 @@ function RoomContent() {
     } catch {
       setArticleError(true)
     } finally {
-      setTimeout(() => setIsTransitioning(false), 200)
+      loadingSlugRef.current = null
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+      transitionTimerRef.current = setTimeout(() => setIsTransitioning(false), 200)
     }
   }, [])
 
   // Both 'sync' (join response) and 'navigate' (peer navigation) trigger a load
   const handleServerMessage = useCallback((msg: ServerMessage) => {
     if (msg.type === 'sync' || msg.type === 'navigate') {
-      loadArticle(msg.slug)
+      if (msg.slug !== loadingSlugRef.current) {
+        loadArticle(msg.slug)
+      }
     }
   }, [loadArticle])
 
