@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 interface RoomBarProps {
   title: string
@@ -9,12 +9,14 @@ interface RoomBarProps {
 
 export function RoomBar({ title, participantCount, canGoBack, onBack }: RoomBarProps) {
   const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function handleCopy() {
     navigator.clipboard.writeText(window.location.href).then(() => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
   }
 
   return (
