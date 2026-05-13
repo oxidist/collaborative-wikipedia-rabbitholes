@@ -50,6 +50,11 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
           } catch {
             wikiSlug = internalMatch[1]
           }
+          // Skip non-article namespaces (File:, Special:, Help:, etc.)
+          if (/^[A-Z][a-zA-Z]+:/.test(wikiSlug)) {
+            const { href: _removed, ...rest } = attribs
+            return { tagName, attribs: rest }
+          }
           // No href — prevents hash/router navigation when clicked.
           // ArticleView intercepts via data-wiki-slug; tabindex keeps keyboard access.
           const { href: _removed, ...rest } = attribs
