@@ -29,7 +29,7 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
       ...sanitizeHtml.defaults.allowedAttributes,
       '*': ['class', 'id'],
       a: ['href', 'data-wiki-slug', 'class', 'id', 'rel', 'target', 'tabindex'],
-      img: ['src', 'srcset', 'alt', 'width', 'height', 'class', 'loading'],
+      img: ['src', 'alt', 'width', 'height', 'class', 'loading'],
       td: ['colspan', 'rowspan', 'class'],
       th: ['colspan', 'rowspan', 'scope', 'class'],
       col: ['span', 'class'],
@@ -71,6 +71,9 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         }
 
         return { tagName, attribs }
+      },
+      img(_tagName, attribs) {
+        return { tagName: 'img', attribs: { ...attribs, loading: 'lazy' } }
       },
     },
     exclusiveFilter: (frame) => {

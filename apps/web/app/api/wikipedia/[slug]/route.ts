@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 })
   }
 
-  const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(slug)}`
+  const url = `https://en.wikipedia.org/api/rest_v1/page/mobile-html/${encodeURIComponent(slug)}`
 
   let res: Response
   try {

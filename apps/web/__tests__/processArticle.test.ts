@@ -89,4 +89,25 @@ describe('processArticle', () => {
     const result = processArticle('<p>text</p>', 'My_Article')
     expect(result.slug).toBe('My_Article')
   })
+
+  it('adds loading=lazy to images that do not have a loading attribute', () => {
+    const html = '<img src="https://upload.wikimedia.org/photo.jpg" alt="photo" width="200" height="100">'
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('loading="lazy"')
+  })
+
+  it('does not duplicate loading attribute on images that already have one', () => {
+    const html = '<img src="https://upload.wikimedia.org/photo.jpg" alt="photo" loading="eager">'
+    const result = processArticle(html, 'Test')
+    const matches = result.html.match(/loading=/g)
+    expect(matches).toHaveLength(1)
+    expect(result.html).toContain('loading="lazy"')
+  })
+
+  it('strips srcset from images', () => {
+    const html = '<img src="https://upload.wikimedia.org/small.jpg" srcset="https://upload.wikimedia.org/large.jpg 2x" alt="photo">'
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('srcset')
+    expect(result.html).toContain('src="https://upload.wikimedia.org/small.jpg"')
+  })
 })
