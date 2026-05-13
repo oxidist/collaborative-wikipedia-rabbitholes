@@ -120,8 +120,10 @@ function RoomContent() {
           onWikiLinkClick={handleWikiLinkClick}
           isTransitioning={isTransitioning}
         />
-      ) : (
+      ) : isTransitioning ? (
         <p className="article-loading">Loading…</p>
+      ) : (
+        <p className="article-waiting">Waiting for host…</p>
       )}
     </>
   )
