@@ -26,6 +26,10 @@ npm workspaces. Run from root:
 - `npm run dev:ws` — WS server on port 8080 (or `PORT` env var)
 - `npm run lint` / `npm run type-check` / `npm run test` — run across all workspaces
 
+### Local network testing
+
+Both servers bind to `0.0.0.0` so other devices on the LAN can connect. Set `NEXT_PUBLIC_WS_URL=ws://<your-machine-ip>:8080` in `apps/web/.env.local`. Devices connect to `http://<your-machine-ip>:3000` (or 3001).
+
 ---
 
 ## What's fully built
@@ -39,7 +43,7 @@ npm workspaces. Run from root:
 - Room lifecycle: join adds to Set, leave removes; empty room deletes from store
 - On `join`: sends `sync` to the joiner with current room slug; broadcasts updated participant count to all
 - On `navigate`: updates store, broadcasts `navigate` to all members (including sender)
-- Binds on `0.0.0.0` (all interfaces) — was changed from default localhost to support local network and ngrok use
+- Binds on `0.0.0.0` (all interfaces) — supports local network and ngrok use
 - Port via `PORT` env var, defaults to 8080
 - Tests in `src/__tests__/server.test.ts` and `store.test.ts`
 
@@ -54,14 +58,17 @@ npm workspaces. Run from root:
 ### Content processor (`apps/web/lib/processArticle.ts`)
 - Sanitizes Wikipedia's mobile HTML via `sanitize-html`
 - Rewrites internal wiki links (both `./Slug` Parsoid format and `/wiki/Slug` classic) to `data-wiki-slug` attributes with no `href` — prevents router navigation, keeps keyboard access via `tabindex="0"`
+- Skips non-article namespaces (`File:`, `Special:`, `Help:`, etc.) — these links are stripped of href but not made navigable, so clicking image wrappers does nothing
 - External links get `target="_blank" rel="noopener noreferrer"`
 - Strips edit sections, navboxes, TOC, reference lists, category links
 - Forces `loading="lazy"` on all images — prevents image loading from blocking initial render
 - Strips `srcset` from images — browser loads only the medium-res `src` thumbnail instead of picking a high-res variant
+- **`<img data-src>`** — some images use `data-src` for lazy loading; the `img` transform promotes it to `src`
+- **`<span data-src>` → `<img>`** — Wikipedia's mobile HTML represents main article images as `<span data-src="...">` placeholders that their JS would convert at runtime. The `span` transform does this at parse time so images render without JS
 
 ### Web app (`apps/web`)
 - **Home page** (`app/page.tsx`): Wikipedia URL input → `parseWikiSlug` → generates `nanoid(8)` room ID → pushes to `/room/{id}?article={slug}`
-- **Room page** (`app/room/[id]/page.tsx`): wires `useRoom` + `loadArticle` + back history. Optimistic navigation: clicks trigger local load immediately and also broadcast via WS. Three null-article states: "Waiting for host…" (idle, no sync received), "Loading…" (fetch in progress), article view.
+- **Room page** (`app/room/[id]/page.tsx`): wires `useRoom` + `loadArticle` + back history. Optimistic navigation: clicks trigger local load immediately and also broadcast via WS. Placeholder states: "Loading…" (fetch in flight, or `initialSlug` is set and WS handshake is pending), "Waiting for host…" (late joiner, no sync received yet).
 - **`useRoom` hook** (`hooks/useRoom.ts`): WebSocket client. WS URL from `NEXT_PUBLIC_WS_URL` env var, defaults to `ws://localhost:8080`. Exponential backoff reconnect (3 retries, max 8s delay). Stable `connect()` via refs — no re-registration on re-render.
 - **`ArticleView`** (`components/ArticleView.tsx`): renders sanitized HTML via `dangerouslySetInnerHTML`, intercepts `[data-wiki-slug]` clicks via event delegation on a stable container ref.
 - **`RoomBar`** (`components/RoomBar.tsx`): article title + participant count (only shown when >1) + back button + copy-link button (copies current URL to clipboard, shows "Copied!" for 2s).
@@ -75,8 +82,9 @@ npm workspaces. Run from root:
 - **`connect()` uses refs, not state** — the WS `connect` function has `[]` deps and reads roomId/initialSlug from refs at call time. This prevents double-connection on Strict Mode's simulated unmount/remount and avoids recreating the function when React re-renders.
 - **`RoomStore` is async** — even though the current impl is synchronous under the hood, the interface is `Promise`-returning so a Redis backend can be dropped in with no changes to `server.ts`.
 - **Participant count broadcast on every join/leave** — simpler than maintaining diffs; count is small data.
-- **`isTransitioning` distinguishes loading from waiting** — `article === null && isTransitioning === false` means waiting for WS sync; `article === null && isTransitioning === true` means a fetch is in flight. `loadArticle` sets `isTransitioning = true` immediately on call.
+- **`isTransitioning || initialSlug` for loading state** — showing "Loading…" requires either an active fetch (`isTransitioning`) or a known initial article (`initialSlug`). Without the `initialSlug` check, the room creator would see "Waiting for host…" during the WS handshake before `sync` arrives.
 - **`mobile-html` over `page/html`** — Wikipedia's mobile HTML endpoint is pre-processed and much smaller than Parsoid HTML. Switching reduced first-load time significantly. The trade-off is slightly less semantic richness in the HTML, which hasn't mattered in practice.
+- **Wikipedia mobile HTML image format** — images in mobile HTML are not straightforward `<img>` tags. Main article images are `<span data-src="...">` placeholders; some inline images use `<img data-src="...">` with a base64 placeholder as `src`. Both are handled in `processArticle`'s `transformTags`.
 
 ---
 
@@ -100,5 +108,5 @@ npm workspaces. Run from root:
 ## Test coverage
 
 - `apps/ws`: server message handling, store CRUD
-- `apps/web`: `parseWikiSlug` (URL parsing edge cases), `processArticle` (link rewriting, sanitization, filtering, lazy image loading, srcset stripping)
+- `apps/web`: `parseWikiSlug` (URL parsing edge cases), `processArticle` (link rewriting, sanitization, filtering, lazy image loading, srcset stripping, data-src promotion, span-to-img conversion)
 - No integration tests, no E2E tests
