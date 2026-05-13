@@ -110,4 +110,12 @@ describe('processArticle', () => {
     expect(result.html).not.toContain('srcset')
     expect(result.html).toContain('src="https://upload.wikimedia.org/small.jpg"')
   })
+
+  it('promotes data-src to src for Wikipedia lazy-loaded images', () => {
+    const html = '<img src="data:image/gif;base64,R0lGODlh" data-src="https://upload.wikimedia.org/real.jpg" alt="photo">'
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('src="https://upload.wikimedia.org/real.jpg"')
+    expect(result.html).not.toContain('data-src')
+    expect(result.html).not.toContain('R0lGODlh')
+  })
 })

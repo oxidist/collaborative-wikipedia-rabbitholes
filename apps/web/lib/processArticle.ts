@@ -73,7 +73,9 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         return { tagName, attribs }
       },
       img(_tagName, attribs) {
-        return { tagName: 'img', attribs: { ...attribs, loading: 'lazy' } }
+        // Wikipedia mobile HTML uses data-src for lazy loading; promote it to src
+        const src = attribs['data-src'] ?? attribs.src ?? ''
+        return { tagName: 'img', attribs: { ...attribs, src, loading: 'lazy' } }
       },
     },
     exclusiveFilter: (frame) => {
