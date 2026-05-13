@@ -192,6 +192,7 @@ body {
   font-size: 0.875rem;
 }
 
+/* Article placeholder states */
 .article-loading {
   padding: 48px 24px;
   text-align: center;

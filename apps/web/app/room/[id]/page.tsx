@@ -121,9 +121,9 @@ function RoomContent() {
           isTransitioning={isTransitioning}
         />
       ) : isTransitioning ? (
-        <p className="article-loading">Loading…</p>
+        <p className="article-loading" aria-live="polite">Loading…</p>
       ) : (
-        <p className="article-waiting">Waiting for host…</p>
+        <p className="article-waiting" aria-live="polite">Waiting for host…</p>
       )}
     </>
   )
@@ -131,7 +131,7 @@ function RoomContent() {
 
 export default function RoomPage() {
   return (
-    <Suspense fallback={<p className="article-loading">Loading…</p>}>
+    <Suspense fallback={<p className="article-loading" aria-live="polite">Loading…</p>}>
       <RoomContent />
     </Suspense>
   )
