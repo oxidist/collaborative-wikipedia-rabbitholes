@@ -118,4 +118,14 @@ describe('processArticle', () => {
     expect(result.html).not.toContain('data-src')
     expect(result.html).not.toContain('R0lGODlh')
   })
+
+  it('converts Wikipedia span placeholders with data-src into img tags', () => {
+    const html = '<figure><span data-src="//upload.wikimedia.org/photo.jpg" data-width="500" data-height="300" data-class="mw-file-element"></span></figure>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('<img')
+    expect(result.html).toContain('src="//upload.wikimedia.org/photo.jpg"')
+    expect(result.html).toContain('width="500"')
+    expect(result.html).toContain('height="300"')
+    expect(result.html).not.toContain('data-src')
+  })
 })

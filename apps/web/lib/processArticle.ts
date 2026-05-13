@@ -77,6 +77,22 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         const src = attribs['data-src'] ?? attribs.src ?? ''
         return { tagName: 'img', attribs: { ...attribs, src, loading: 'lazy' } }
       },
+      // Wikipedia mobile HTML represents main article images as <span data-src="...">
+      // instead of <img> — their JS converts these at runtime, we do it at parse time.
+      span(_tagName, attribs) {
+        if (!attribs['data-src']) return { tagName: 'span', attribs }
+        return {
+          tagName: 'img',
+          attribs: {
+            src: attribs['data-src'],
+            width: attribs['data-width'] ?? '',
+            height: attribs['data-height'] ?? '',
+            alt: attribs.alt ?? '',
+            class: attribs['data-class'] ?? attribs.class ?? '',
+            loading: 'lazy',
+          },
+        }
+      },
     },
     exclusiveFilter: (frame) => {
       // Substring matching is intentional — catches all navbox/editsection variants
