@@ -27,7 +27,7 @@ function broadcastParticipantCount(roomId: string): void {
 }
 
 export function createServer(port: number): WebSocketServer {
-  const wss = new WebSocketServer({ port })
+  const wss = new WebSocketServer({ port, host: '0.0.0.0' })
 
   wss.on('connection', (ws) => {
     let currentRoomId: string | null = null
