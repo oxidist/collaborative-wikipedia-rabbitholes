@@ -136,6 +136,76 @@ body {
   outline-offset: 2px;
 }
 
+/* Voice chat controls */
+.room-bar__voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-bar__voice-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  transition: background 0.15s;
+}
+
+.room-bar__voice-dot--active {
+  background: #22c55e;
+}
+
+.room-bar__voice-btn {
+  background: none;
+  border: 1px solid #d0d0d0;
+  cursor: pointer;
+  color: #555;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.room-bar__voice-btn:hover {
+  background: #f5f5f5;
+}
+
+.room-bar__voice-leave {
+  background: none;
+  border: 1px solid #fca5a5;
+  cursor: pointer;
+  color: #ef4444;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.room-bar__voice-leave:hover {
+  background: #fef2f2;
+}
+
+.room-bar__voice-join {
+  background: none;
+  border: 1px solid #d0d0d0;
+  cursor: pointer;
+  color: #555;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.room-bar__voice-join:hover {
+  background: #f5f5f5;
+}
+
+.room-bar__voice-denied {
+  font-size: 0.8rem;
+  color: #ef4444;
+}
+
 /* Navigation trail */
 .nav-trail {
   position: fixed;
