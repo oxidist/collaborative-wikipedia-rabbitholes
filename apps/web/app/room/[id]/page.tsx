@@ -8,6 +8,7 @@ import { RoomBar } from '@/components/RoomBar'
 import { NavigationTrail } from '@/components/NavigationTrail'
 import { ConnectionBanner } from '@/components/ConnectionBanner'
 import { useRoom } from '@/hooks/useRoom'
+import { useVoiceChat } from '@/hooks/useVoiceChat'
 
 interface ArticleData {
   html: string
@@ -24,18 +25,14 @@ async function fetchArticle(slug: string): Promise<ArticleData> {
 function RoomContent() {
   const { id: roomId } = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  // initialSlug: provided by home page (?article=) or empty for late joiners
   const initialSlug = searchParams.get('article') ?? ''
 
   const [article, setArticle] = useState<ArticleData | null>(null)
   const [articleError, setArticleError] = useState(false)
   const [history, setHistory] = useState<ArticleData[]>([])
   const [isTransitioning, setIsTransitioning] = useState(false)
-  // Ref to current article — used to push to history without a setState dependency
   const articleRef = useRef<ArticleData | null>(null)
-  // Ref tracking which slug is currently being fetched — prevents double-load race
   const loadingSlugRef = useRef<string | null>(null)
-  // Ref for the isTransitioning clear timer — prevents state updates on unmounted component
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -66,25 +63,35 @@ function RoomContent() {
     }
   }, [])
 
-  // Both 'sync' (join response) and 'navigate' (peer navigation) trigger a load
-  const handleServerMessage = useCallback((msg: ServerMessage) => {
-    if (msg.type === 'sync' || msg.type === 'navigate') {
-      if (msg.slug !== loadingSlugRef.current) {
-        loadArticle(msg.slug)
-      }
-    }
-  }, [loadArticle])
-
-  const { participantCount, trail, navigate, connectionLost, retry } = useRoom({
+  const { participantCount, trail, navigate, sendSignal, connectionLost, retry } = useRoom({
     roomId,
     initialSlug,
     onMessage: handleServerMessage,
   })
 
+  const voice = useVoiceChat({ roomId, sendSignal })
+
+  // Stable ref so handleServerMessage can call handleSignal without being recreated
+  const voiceHandleSignalRef = useRef(voice.handleSignal)
+  voiceHandleSignalRef.current = voice.handleSignal
+
+  function handleServerMessage(msg: ServerMessage) {
+    if (msg.type === 'sync' || msg.type === 'navigate') {
+      if (msg.slug !== loadingSlugRef.current) {
+        loadArticle(msg.slug)
+      }
+    } else if (
+      msg.type === 'voice-offer' ||
+      msg.type === 'voice-answer' ||
+      msg.type === 'voice-ice' ||
+      msg.type === 'voice-state'
+    ) {
+      voiceHandleSignalRef.current(msg)
+    }
+  }
+
   const handleWikiLinkClick = useCallback((slug: string) => {
     navigate(slug)
-    // Optimistically start loading — server will also broadcast back to us,
-    // but we load immediately for snappiness
     loadArticle(slug)
   }, [navigate, loadArticle])
 
@@ -106,6 +113,14 @@ function RoomContent() {
           participantCount={participantCount}
           canGoBack={history.length > 0}
           onBack={handleBack}
+          voiceJoined={voice.joined}
+          voiceMuted={voice.muted}
+          voiceSpeaking={voice.speaking}
+          voiceRemoteSpeaking={voice.remoteSpeaking}
+          voicePermissionDenied={voice.permissionDenied}
+          onJoinVoice={() => { void voice.join() }}
+          onLeaveVoice={voice.leave}
+          onToggleMute={voice.toggleMute}
         />
       )}
       {article && trail.length > 0 && (
