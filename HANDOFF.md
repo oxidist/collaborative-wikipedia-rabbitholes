@@ -1,7 +1,9 @@
 # Wikihole — Handoff
 
-**Last updated:** 2026-05-14 (session 4)  
+**Last updated:** 2026-05-15 (session 6)  
 **For:** Future Claude Sonnet session
+
+**Active branch:** `dev` — created from `master` and currently contains all merged feature work. `feature/navigation-trail` was merged into `feature/redis-collapsible-infobox`, which was then merged (no-ff) into `dev`. `master` has not been updated and is intentionally behind.
 
 ---
 
@@ -30,22 +32,41 @@ npm workspaces. Run from root:
 
 Both servers bind to `0.0.0.0` so other devices on the LAN can connect. Set `NEXT_PUBLIC_WS_URL=ws://<your-machine-ip>:8080` in `apps/web/.env.local`. Devices connect to `http://<your-machine-ip>:3000` (or 3001).
 
+### Production deployment (Render)
+
+Both services are deployed on Render from the GitHub repo (`oxidist/collaborative-wikipedia-rabbitholes`).
+
+- **WS server** — Render Web Service
+  - Build: `npm install && npm run build -w apps/ws`
+  - Start: `node apps/ws/dist/index.js`
+  - URL: `wss://collaborative-wikipedia-rabbitholes.onrender.com`
+
+- **Web app** — Render Web Service
+  - Build: `npm install && npm run build --workspace=apps/web`
+  - Start: `npm run start --workspace=apps/web`
+  - Env var: `NEXT_PUBLIC_WS_URL=wss://collaborative-wikipedia-rabbitholes.onrender.com`
+
+Note: `output: 'standalone'` was tried and removed — Next.js standalone mode doesn't reliably produce `server.js` in a monorepo context. `next start` is used instead.
+
 ---
 
 ## What's fully built
 
 ### Shared types (`packages/types`)
 - `ClientMessage`: `join` (with roomId + optional articleSlug) and `navigate` (roomId + slug)
-- `ServerMessage`: `sync` (slug on join), `navigate` (broadcast), `participants` (count)
+- `ServerMessage`: `sync` (slug + full `trail: string[]` on join), `navigate` (broadcast), `participants` (count)
 
 ### WebSocket server (`apps/ws`)
-- `RoomStore` interface is async and designed to swap in Redis without touching server logic — currently backed by `MemoryRoomStore` (in-process Map)
-- Room lifecycle: join adds to Set, leave removes; empty room deletes from store
-- On `join`: sends `sync` to the joiner with current room slug; broadcasts updated participant count to all
-- On `navigate`: updates store, broadcasts `navigate` to all members (including sender)
+- `RoomStore` interface is async; `get(roomId)` returns `{ slug, trail } | undefined`. Two backends:
+  - `MemoryRoomStore` (in-process Map) — default
+  - `RedisRoomStore` — selected when `REDIS_URL` is set; persists rooms as JSON-encoded `{slug, trail}` strings under the `wh:room:` prefix. Backward-compatible with the legacy bare-slug values written before the trail field existed.
+- `setSlug(roomId, slug)` is the single atomic operation that mutates a room: it updates the current slug AND appends to the trail, suppressing the append when `slug` equals the last trail entry (consecutive-duplicate dedup). Creates the room (with `trail: [slug]`) if it doesn't exist.
+- Room lifecycle: join adds the WebSocket to the room's Set, leave removes; empty room deletes from store
+- On `join`: seeds the room with the joiner's `articleSlug` if it doesn't exist yet, then sends `sync` with `{slug, trail}` to the joiner; broadcasts updated participant count to all
+- On `navigate`: `setSlug` (atomic update + append), then broadcasts `navigate` to all members (including sender)
 - Binds on `0.0.0.0` (all interfaces) — supports local network and ngrok use
 - Port via `PORT` env var, defaults to 8080
-- Tests in `src/__tests__/server.test.ts` and `store.test.ts`
+- Tests in `src/__tests__/server.test.ts` and `store.test.ts` cover trail seeding, consecutive-dedup, non-consecutive repeats, and late-joiner receiving the full trail through `sync`.
 
 ### Wikipedia proxy (`apps/web/app/api/wikipedia/[slug]/route.ts`)
 - Fetches from `https://en.wikipedia.org/api/rest_v1/page/mobile-html/{slug}` — mobile-optimized endpoint, 3–10x smaller than Parsoid HTML, significantly faster fetch and processing
@@ -62,6 +83,7 @@ Both servers bind to `0.0.0.0` so other devices on the LAN can connect. Set `NEX
 - Skips non-article namespaces (`File:`, `Special:`, `Help:`, etc.) — these links are stripped of href but not made navigable, so clicking image wrappers does nothing
 - External links get `target="_blank" rel="noopener noreferrer"`
 - Strips edit sections, navboxes, TOC, category links
+- **Strips PCS collapsible-table chrome** — Wikipedia's mobile HTML wraps infoboxes and other collapsible tables in `pcs-collapse-table-collapsed-container` (the "Quick facts ... Born, Died ..." preview header) and `pcs-collapse-table-collapsed-bottom` ("Close" footer) elements that PCS JS would toggle. Without that JS those chrome elements leak into the rendered body as stray text. The exclusive filter drops both via a `pcs-collapse-table-collapsed` substring match; the inner table inside `pcs-collapse-table-content` is preserved (the inline `display:none` is stripped because `style` isn't an allowed attribute).
 - **References section** — `reflist` and `mw-references-wrap` elements are kept. Footnote `[N]` clicks jump to the matching `<li id="cite_note-...">` entry at the bottom. Back-links (↑ arrows) in the reference list use PCS-generated `href="./Article#pcs-ref-back-link-cite_note-X"` hrefs; `fixPcsBacklinks` rewrites these to the existing `<sup id="cite_ref-*">` IDs using MediaWiki's naming convention (`cite_note-N` → `cite_ref-N` for anonymous refs, `cite_note-NAME-N` → `cite_ref-NAME_N-0` for named refs), so clicking ↑ scrolls back to the correct superscript in the body.
 - Forces `loading="lazy"` on all images — prevents image loading from blocking initial render
 - Strips `srcset` from images — browser loads only the medium-res `src` thumbnail instead of picking a high-res variant
@@ -74,9 +96,10 @@ Both servers bind to `0.0.0.0` so other devices on the LAN can connect. Set `NEX
 ### Web app (`apps/web`)
 - **Home page** (`app/page.tsx`): Wikipedia URL input → `parseWikiSlug` → generates `nanoid(8)` room ID → pushes to `/room/{id}?article={slug}`
 - **Room page** (`app/room/[id]/page.tsx`): wires `useRoom` + `loadArticle` + back history. Optimistic navigation: clicks trigger local load immediately and also broadcast via WS. Placeholder states: "Loading…" (fetch in flight, or `initialSlug` is set and WS handshake is pending), "Waiting for host…" (late joiner, no sync received yet).
-- **`useRoom` hook** (`hooks/useRoom.ts`): WebSocket client. WS URL from `NEXT_PUBLIC_WS_URL` env var, defaults to `ws://localhost:8080`. Exponential backoff reconnect (3 retries, max 8s delay). Stable `connect()` via refs — no re-registration on re-render.
+- **`useRoom` hook** (`hooks/useRoom.ts`): WebSocket client. WS URL from `NEXT_PUBLIC_WS_URL` env var, defaults to `ws://localhost:8080`. Exponential backoff reconnect (3 retries, max 8s delay). Stable `connect()` via refs — no re-registration on re-render. Returns `trail: string[]` alongside `participantCount`, `navigate`, etc. Trail state is replaced on `sync` and appended (with consecutive-dedup) on `navigate`.
 - **`ArticleView`** (`components/ArticleView.tsx`): renders sanitized HTML via `dangerouslySetInnerHTML`, intercepts `[data-wiki-slug]` clicks via event delegation on a stable container ref.
 - **`RoomBar`** (`components/RoomBar.tsx`): article title + participant count (only shown when >1) + back button + copy-link button (copies current URL to clipboard, shows "Copied!" for 2s).
+- **`NavigationTrail`** (`components/NavigationTrail.tsx`): horizontal strip rendered below `RoomBar` showing every article the room has visited, chevron-separated. The current entry is styled distinctly and non-interactive; past entries are buttons that delegate to `handleWikiLinkClick` (same path wiki-link clicks use — broadcasts `navigate` and optimistically loads). Horizontal scrolls on overflow with the rightmost entry pinned visible (`scrollLeft = scrollWidth` on trail change). `slugToLabel` (exported) converts `Foo_Bar` → `Foo Bar` for display.
 - **`ConnectionBanner`** (`components/ConnectionBanner.tsx`): shown when WS retries are exhausted, with a retry button.
 
 ---
@@ -95,14 +118,15 @@ Both servers bind to `0.0.0.0` so other devices on the LAN can connect. Set `NEX
 - **`wh-thumb` class for thumbnail CSS targeting** — `typeof="mw:File/Thumb"` is the reliable marker for thumbnail figures in Wikipedia mobile HTML, but CSS Modules mangles attribute selectors containing `:` and `/`. The `figure` transformTag reads `typeof` before it is stripped and adds `wh-thumb` to the class list. CSS targets `.wh-thumb` instead.
 - **Gallery images are a separate structure** — image galleries use `<ul class="gallery mw-gallery-packed"><li class="gallerybox">` rather than `<figure>` elements. They are styled separately via the `ul.gallery` / `li.gallerybox` CSS rules. The inline `style="width: ..."` attributes that Wikipedia sets on gallery items are stripped by sanitize-html, so gallery items use a fixed 200px fallback width.
 - **Infobox hoisting and the `wh-infobox-cluster` wrapper** — the infobox `<table class="infobox">` sits inside the lede `<section>` in Wikipedia mobile HTML. A float inside a section can only extend as tall as that section; `hoistInfobox` moves it before all sections so it floats across the full article. The wrapper `<div class="wh-infobox-cluster">` is necessary because HTML parsers foster-parent `<hr>` elements out of table contexts (they're invalid inside `<table>`), splitting one logical infobox into multiple `<table>` fragments with a bare `<hr>` between them. Wrapping the whole cluster in a floated `<div>` keeps the `<hr>` contained inside the float instead of bleeding full-width across the article.
+- **Navigation trail is an append-only history log, not a tree** — clicking a past trail entry does NOT truncate the log; it appends the backtracked slug as a new entry. The server applies consecutive-dedup so quick double-clicks don't duplicate, but non-consecutive repeats are faithfully recorded (e.g. `A → B → A` shows all three). Trail entries store slug only; the UI derives display text via `slug.replace(/_/g, ' ')`. The server is canonical; clients are mirrors and apply the same dedup rule on `navigate` to stay in sync without re-broadcasting the full trail.
 
 ---
 
 ## What's not built yet
 
 ### High priority
-- **Redis-backed `RoomStore`** — `MemoryRoomStore` loses all room state on server restart. The interface is ready; just needs a Redis implementation and `REDIS_URL` env var wiring.
-- **Production deployment** — no Vercel config for `apps/web`, no Railway/Render config for `apps/ws`. The `NEXT_PUBLIC_WS_URL` env var is how the web app finds the WS server; that's the only wiring needed at deploy time.
+- **Participant cursors / scroll presence** — Show where in the article other participants are reading (a subtle colored indicator per user). Makes the "together" feeling real.
+- **Collapsible, linked table of contents** — A TOC derived from article section headings, with anchor links to jump to each section, collapsible so it doesn't dominate the layout.
 
 ### Medium priority
 - **`.env.example` files** — no documentation of required/optional env vars in each app.
@@ -118,6 +142,10 @@ Both servers bind to `0.0.0.0` so other devices on the LAN can connect. Set `NEX
 
 ## Test coverage
 
-- `apps/ws`: server message handling, store CRUD
-- `apps/web`: `parseWikiSlug` (URL parsing edge cases), `processArticle` (link rewriting, sanitization, filtering, lazy image loading, srcset stripping, data-src promotion, span-to-img conversion, same-page fragment links, wh-thumb figure transform, thumbnail hoisting, infobox hoisting and split-table cluster capture)
+- `apps/ws`: server message handling (sync/navigate/late-joiner trail propagation), store CRUD with trail seeding + consecutive-dedup + non-consecutive repeats
+- `apps/web`:
+  - `parseWikiSlug` (URL parsing edge cases)
+  - `processArticle` (link rewriting, sanitization, filtering, lazy image loading, srcset stripping, data-src promotion, span-to-img conversion, same-page fragment links, wh-thumb figure transform, thumbnail hoisting, infobox hoisting and split-table cluster capture, PCS collapsible-table chrome removal)
+  - `articleCache` (proxy-side LRU cache + single-flight)
+  - `NavigationTrail` (`slugToLabel` slug-to-display helper)
 - No integration tests, no E2E tests
