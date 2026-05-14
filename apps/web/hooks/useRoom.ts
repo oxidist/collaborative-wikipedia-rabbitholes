@@ -16,6 +16,7 @@ interface UseRoomReturn {
   participantCount: number
   trail: string[]
   navigate: (slug: string) => void
+  sendSignal: (msg: ClientMessage) => void
   connectionLost: boolean
   retry: () => void
 }
@@ -128,6 +129,12 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const sendSignal = useCallback((msg: ClientMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msg))
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const retry = useCallback(() => {
     if (reconnectTimerRef.current !== null) {
       clearTimeout(reconnectTimerRef.current)
@@ -138,5 +145,5 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     connect()
   }, [connect])
 
-  return { participantCount, trail, navigate, connectionLost, retry }
+  return { participantCount, trail, navigate, sendSignal, connectionLost, retry }
 }
