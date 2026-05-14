@@ -165,4 +165,24 @@ describe('processArticle', () => {
     expect(result.html).toContain('href="#cite_note-1"')
     expect(result.html).toContain('id="cite_note-1"')
   })
+
+  it('adds wh-thumb class to figure[typeof="mw:File/Thumb"] thumbnails', () => {
+    const html = '<figure typeof="mw:File/Thumb" class="mw-default-size"><img src="photo.jpg" alt=""><figcaption>Cap</figcaption></figure>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('wh-thumb')
+    expect(result.html).toContain('mw-default-size')
+  })
+
+  it('does not add wh-thumb to non-thumbnail figures', () => {
+    const html = '<figure class="mw-gallery"><img src="photo.jpg" alt=""></figure>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('wh-thumb')
+  })
+
+  it('adds wh-thumb and preserves mw-halign-left for left-floating thumbnails', () => {
+    const html = '<figure typeof="mw:File/Thumb" class="mw-halign-left pcs-widen-image-ancestor"><img src="photo.jpg" alt=""></figure>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('wh-thumb')
+    expect(result.html).toContain('mw-halign-left')
+  })
 })

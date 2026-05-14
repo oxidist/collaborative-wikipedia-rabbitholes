@@ -30,7 +30,6 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
       '*': ['class', 'id'],
       a: ['href', 'data-wiki-slug', 'class', 'id', 'rel', 'target', 'tabindex'],
       img: ['src', 'alt', 'width', 'height', 'class', 'loading'],
-      figure: ['typeof', 'class', 'id'],
       td: ['colspan', 'rowspan', 'class'],
       th: ['colspan', 'rowspan', 'scope', 'class'],
       col: ['span', 'class'],
@@ -91,6 +90,18 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         // Wikipedia mobile HTML uses data-src for lazy loading; promote it to src
         const src = attribs['data-src'] ?? attribs.src ?? ''
         return { tagName: 'img', attribs: { ...attribs, src, loading: 'lazy' } }
+      },
+      // Wikipedia mobile HTML marks thumbnails with typeof="mw:File/Thumb".
+      // Normalise this to a stable class so CSS doesn't need an attribute selector
+      // with special characters that CSS Modules may mangle.
+      figure(_tagName, attribs) {
+        const type = attribs.typeof ?? ''
+        if (!type.includes('mw:File/Thumb')) return { tagName: 'figure', attribs }
+        const base = attribs.class ?? ''
+        return {
+          tagName: 'figure',
+          attribs: { ...attribs, class: base ? `${base} wh-thumb` : 'wh-thumb' },
+        }
       },
       // Wikipedia mobile HTML represents main article images as <span data-src="...">
       // instead of <img> — their JS converts these at runtime, we do it at parse time.

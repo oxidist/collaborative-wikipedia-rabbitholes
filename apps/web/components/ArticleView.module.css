@@ -56,10 +56,10 @@
 }
 
 /* --- Floating image thumbnails ---
-   Wikipedia mobile HTML marks all thumbnails with typeof="mw:File/Thumb".
-   Float direction comes from mw-halign-* classes; default is right. */
+   processArticle adds class wh-thumb to figure[typeof="mw:File/Thumb"].
+   Float direction from mw-halign-* classes; default (no halign) is right. */
 
-.article :global(figure[typeof="mw:File/Thumb"]) {
+.article :global(.wh-thumb) {
   float: right;
   clear: right;
   margin: 0 0 1em 1.4em;
@@ -71,19 +71,19 @@
   text-align: center;
 }
 
-.article :global(figure[typeof="mw:File/Thumb"].mw-halign-left) {
+.article :global(.wh-thumb.mw-halign-left) {
   float: left;
   clear: left;
   margin: 0 1.4em 1em 0;
 }
 
-.article :global(figure[typeof="mw:File/Thumb"].mw-halign-right) {
+.article :global(.wh-thumb.mw-halign-right) {
   float: right;
   clear: right;
   margin: 0 0 1em 1.4em;
 }
 
-.article :global(figure[typeof="mw:File/Thumb"].mw-halign-center) {
+.article :global(.wh-thumb.mw-halign-center) {
   float: none;
   clear: both;
   margin: 0 auto 1em;
@@ -91,7 +91,7 @@
 }
 
 /* Image inside thumbnail: override HTML width/height attributes */
-.article :global(figure[typeof="mw:File/Thumb"]) img {
+.article :global(.wh-thumb) img {
   width: 100%;
   max-width: 100%;
   height: auto;
@@ -99,7 +99,7 @@
 }
 
 /* Caption */
-.article :global(figure[typeof="mw:File/Thumb"] figcaption) {
+.article :global(.wh-thumb figcaption) {
   color: #555;
   margin-top: 4px;
   line-height: 1.4;
