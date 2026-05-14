@@ -1,6 +1,7 @@
 node_modules/
 .claude/
 docs/superpowers/
+.superpowers
 .next/
 dist/
 .env.local
