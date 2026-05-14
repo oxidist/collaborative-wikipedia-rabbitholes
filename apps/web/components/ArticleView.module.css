@@ -139,6 +139,14 @@
     max-width: 100%;
     margin: 0 0 1em 0;
   }
+
+  .article :global(.wh-thumb) {
+    max-width: 35vw;
+  }
+
+  .article :global(.wh-thumb.mw-halign-center) {
+    max-width: 100%;
+  }
 }
 
 /* --- Image galleries (ul.gallery li.gallerybox structure) --- */
