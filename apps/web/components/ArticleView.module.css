@@ -55,10 +55,11 @@
   margin-top: 4px;
 }
 
-/* --- Floating image thumbnails (Wikipedia mobile HTML uses figure.mw-default-size) --- */
+/* --- Floating image thumbnails ---
+   Wikipedia mobile HTML marks all thumbnails with typeof="mw:File/Thumb".
+   Float direction comes from mw-halign-* classes; default is right. */
 
-/* Thumbnail box — default float right, matching Wikipedia's default placement */
-.article :global(figure.mw-default-size) {
+.article :global(figure[typeof="mw:File/Thumb"]) {
   float: right;
   clear: right;
   margin: 0 0 1em 1.4em;
@@ -70,30 +71,27 @@
   text-align: center;
 }
 
-/* Left float */
-.article :global(figure.mw-halign-left) {
+.article :global(figure[typeof="mw:File/Thumb"].mw-halign-left) {
   float: left;
   clear: left;
   margin: 0 1.4em 1em 0;
 }
 
-/* Explicit right float (overrides any inherited float) */
-.article :global(figure.mw-halign-right) {
+.article :global(figure[typeof="mw:File/Thumb"].mw-halign-right) {
   float: right;
   clear: right;
   margin: 0 0 1em 1.4em;
 }
 
-/* Centred — no float */
-.article :global(figure.mw-halign-center) {
+.article :global(figure[typeof="mw:File/Thumb"].mw-halign-center) {
   float: none;
   clear: both;
   margin: 0 auto 1em;
   max-width: 360px;
 }
 
-/* Image inside thumbnail: override any HTML width/height attributes */
-.article :global(figure.mw-default-size) img {
+/* Image inside thumbnail: override HTML width/height attributes */
+.article :global(figure[typeof="mw:File/Thumb"]) img {
   width: 100%;
   max-width: 100%;
   height: auto;
@@ -101,7 +99,7 @@
 }
 
 /* Caption */
-.article :global(figure.mw-default-size figcaption) {
+.article :global(figure[typeof="mw:File/Thumb"] figcaption) {
   color: #555;
   margin-top: 4px;
   line-height: 1.4;

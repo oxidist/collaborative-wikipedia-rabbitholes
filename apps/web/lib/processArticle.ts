@@ -30,6 +30,7 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
       '*': ['class', 'id'],
       a: ['href', 'data-wiki-slug', 'class', 'id', 'rel', 'target', 'tabindex'],
       img: ['src', 'alt', 'width', 'height', 'class', 'loading'],
+      figure: ['typeof', 'class', 'id'],
       td: ['colspan', 'rowspan', 'class'],
       th: ['colspan', 'rowspan', 'scope', 'class'],
       col: ['span', 'class'],
