@@ -166,6 +166,25 @@ describe('processArticle', () => {
     expect(result.html).toContain('id="cite_note-1"')
   })
 
+  it('hoists wh-thumb figures to before the first <p> in a leaf section', () => {
+    // Wikipedia mobile HTML puts figures AFTER paragraphs; float only works
+    // on content that comes after the float in DOM order.
+    const html = '<section><p>Lead text.</p><figure typeof="mw:File/Thumb" class="pcs-widen-image-ancestor"><img src="a.jpg" alt=""><figcaption>Cap</figcaption></figure></section>'
+    const result = processArticle(html, 'Test')
+    const figIndex = result.html.indexOf('<figure')
+    const pIndex = result.html.indexOf('<p>')
+    expect(figIndex).toBeGreaterThanOrEqual(0)
+    expect(figIndex).toBeLessThan(pIndex)
+  })
+
+  it('does not hoist figures in sections that contain nested sections', () => {
+    const html = '<section><p>Outer.</p><section><p>Inner.</p></section></section>'
+    const result = processArticle(html, 'Test')
+    // Should not throw and should produce valid output
+    expect(result.html).toContain('Outer.')
+    expect(result.html).toContain('Inner.')
+  })
+
   it('adds wh-thumb class to figure[typeof="mw:File/Thumb"] thumbnails', () => {
     const html = '<figure typeof="mw:File/Thumb" class="mw-default-size"><img src="photo.jpg" alt=""><figcaption>Cap</figcaption></figure>'
     const result = processArticle(html, 'Test')

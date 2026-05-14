@@ -135,5 +135,30 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
     },
   })
 
-  return { html, title, slug }
+  return { html: hoistThumbnailsBeforeText(html), title, slug }
+}
+
+// Wikipedia mobile HTML places <figure> elements AFTER the <p> text in each
+// section. Float only affects content that comes after the float in the DOM,
+// so figures must precede the text they float beside.
+// Processes only leaf sections (no nested <section>) to preserve subsection
+// structure; the outer sections that contain subsections are left unchanged.
+function hoistThumbnailsBeforeText(html: string): string {
+  return html.replace(
+    /<section\b([^>]*)>((?:(?!<\/?section\b)[\s\S])*?)<\/section>/g,
+    (match, attrs, body) => {
+      if (!body.includes('wh-thumb')) return match
+      const figures: string[] = []
+      const stripped = body.replace(
+        /<figure\b[^>]*\bwh-thumb\b[^>]*>[\s\S]*?<\/figure>/g,
+        (m: string) => { figures.push(m); return '' }
+      )
+      if (!figures.length) return match
+      const joined = figures.join('')
+      const newBody = stripped.includes('<p')
+        ? stripped.replace(/(<p[\s>])/, joined + '$1')
+        : joined + stripped
+      return `<section${attrs}>${newBody}</section>`
+    }
+  )
 }
