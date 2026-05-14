@@ -34,11 +34,26 @@ describe('processArticle', () => {
     expect(result.html).not.toContain('href=')
   })
 
-  it('strips fragment from rewritten link slug', () => {
+  it('strips fragment from cross-page link slug', () => {
     const html = '<a href="./Cephalopod#Anatomy">Anatomy</a>'
     const result = processArticle(html, 'Octopus')
     expect(result.html).toContain('data-wiki-slug="Cephalopod"')
     expect(result.html).not.toContain('#Anatomy')
+  })
+
+  it('preserves same-page fragment as plain href (footnote forward-link)', () => {
+    // Wikipedia mobile HTML: footnotes use ./Article#cite_note-X, not bare #cite_note-X
+    const html = '<sup><a href="./Octopus#cite_note-1">[1]</a></sup>'
+    const result = processArticle(html, 'Octopus')
+    expect(result.html).toContain('href="#cite_note-1"')
+    expect(result.html).not.toContain('data-wiki-slug')
+  })
+
+  it('preserves same-page fragment for /wiki/ format links', () => {
+    const html = '<a href="/wiki/Octopus#cite_note-2">[2]</a>'
+    const result = processArticle(html, 'Octopus')
+    expect(result.html).toContain('href="#cite_note-2"')
+    expect(result.html).not.toContain('data-wiki-slug')
   })
 
   it('decodes percent-encoded slugs in data-wiki-slug', () => {

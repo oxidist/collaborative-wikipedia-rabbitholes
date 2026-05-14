@@ -41,8 +41,9 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         const href = attribs.href ?? ''
 
         // Internal wiki links: both Parsoid format (./Slug) and classic (/wiki/Slug)
-        // Substring after #fragment and ?query are stripped, result is URI-decoded
-        const internalMatch = href.match(/^(?:\.\/|\/wiki\/)([^#?]*)/)
+        // Fragment is captured separately — same-page anchors (footnotes, back-refs)
+        // are preserved as plain #fragment hrefs rather than wiki navigation.
+        const internalMatch = href.match(/^(?:\.\/|\/wiki\/)([^#?]*)(?:#(.+))?/)
         if (internalMatch) {
           let wikiSlug: string
           try {
@@ -50,13 +51,21 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
           } catch {
             wikiSlug = internalMatch[1]
           }
+          const fragment = internalMatch[2]
+
           // Skip non-article namespaces (File:, Special:, Help:, etc.)
           if (/^[A-Z][a-zA-Z]+:/.test(wikiSlug)) {
             const { href: _removed, ...rest } = attribs
             return { tagName, attribs: rest }
           }
-          // No href — prevents hash/router navigation when clicked.
-          // ArticleView intercepts via data-wiki-slug; tabindex keeps keyboard access.
+
+          // Same-page anchor (footnote [N] → cite_note, back-ref ↑ → cite_ref):
+          // keep as a plain fragment href so the browser can jump to the target.
+          if (fragment && wikiSlug === slug) {
+            return { tagName, attribs: { ...attribs, href: `#${fragment}` } }
+          }
+
+          // Cross-page navigation — no href, ArticleView intercepts via data-wiki-slug.
           const { href: _removed, ...rest } = attribs
           return {
             tagName,
