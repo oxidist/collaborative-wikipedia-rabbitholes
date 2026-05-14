@@ -134,6 +134,12 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         // meant to be toggled by PCS JS. Without that JS, the collapsed header
         // ("Quick facts ...") and bottom ("Close") leak into the rendered body.
         cls.includes('pcs-collapse-table-collapsed') ||
+        // Math elements ship three representations: a hidden MathML span for
+        // a11y, a LaTeX annotation, and a rendered SVG img. sanitize-html
+        // strips inline display:none and the MathML tags, leaving the raw
+        // symbol/LaTeX text visible alongside the image. Drop the MathML span
+        // and keep only the img fallback.
+        cls.includes('mwe-math-mathml') ||
         id === 'toc'
       )
     },

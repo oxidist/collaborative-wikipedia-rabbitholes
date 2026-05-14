@@ -322,6 +322,26 @@ describe('processArticle', () => {
     expect(result.html).toContain('class="infobox"')
   })
 
+  it('strips MathML/LaTeX twin representations, keeps only the rendered img', () => {
+    const html = [
+      '<p><span class="mwe-math-element mwe-math-element-block">',
+      '<span class="mwe-math-mathml-display mwe-math-mathml-a11y" style="display: none;">',
+      '<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" alttext="{\\displaystyle a^{2}+b^{2}=c^{2}}">',
+      '<semantics><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow>',
+      '<annotation encoding="application/x-tex">{\\displaystyle a^{2}+b^{2}=c^{2}}</annotation>',
+      '</semantics></math>',
+      '</span>',
+      '<img src="//wikimedia.org/svg/abc.svg" class="mwe-math-fallback-image-display" alt="a^2+b^2=c^2">',
+      '</span></p>',
+    ].join('')
+    const result = processArticle(html, 'Pythagorean_theorem')
+    expect(result.html).not.toContain('\\displaystyle')
+    expect(result.html).not.toContain('annotation')
+    expect(result.html).not.toContain('<mi>')
+    expect(result.html).toContain('mwe-math-fallback-image-display')
+    expect(result.html).toContain('wikimedia.org/svg/abc.svg')
+  })
+
   it('does not hoist an infobox that appears only in a later section', () => {
     const html = [
       '<section><p>Lede.</p></section>',
