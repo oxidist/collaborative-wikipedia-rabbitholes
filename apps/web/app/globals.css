@@ -146,10 +146,17 @@ body {
   background: #fafafa;
   border-bottom: 1px solid #eaecf0;
   z-index: 99;
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: flex;
+  align-items: stretch;
   font-family: system-ui, sans-serif;
   font-size: 0.8125rem;
+}
+
+.nav-trail__scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .nav-trail__list {
@@ -201,6 +208,28 @@ body {
 .nav-trail__sep {
   color: #aaa;
   user-select: none;
+}
+
+.nav-trail__export {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-left: 1px solid #eaecf0;
+  cursor: pointer;
+  color: #555;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.nav-trail__export:hover {
+  background: #f0f0f0;
+}
+
+.nav-trail__export:focus-visible {
+  outline: 2px solid #3b6fce;
+  outline-offset: -2px;
 }
 
 /* Article content */

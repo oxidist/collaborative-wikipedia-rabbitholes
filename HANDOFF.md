@@ -1,6 +1,6 @@
 # Wikihole — Handoff
 
-**Last updated:** 2026-05-15 (session 6)  
+**Last updated:** 2026-05-15 (session 9)  
 **For:** Future Claude Sonnet session
 
 **Active branch:** `dev` — created from `master` and currently contains all merged feature work. `feature/navigation-trail` was merged into `feature/redis-collapsible-infobox`, which was then merged (no-ff) into `dev`. `master` has not been updated and is intentionally behind.
@@ -60,13 +60,13 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
 - `RoomStore` interface is async; `get(roomId)` returns `{ slug, trail } | undefined`. Two backends:
   - `MemoryRoomStore` (in-process Map) — default
   - `RedisRoomStore` — selected when `REDIS_URL` is set; persists rooms as JSON-encoded `{slug, trail}` strings under the `wh:room:` prefix. Backward-compatible with the legacy bare-slug values written before the trail field existed.
-- `setSlug(roomId, slug)` is the single atomic operation that mutates a room: it updates the current slug AND appends to the trail, suppressing the append when `slug` equals the last trail entry (consecutive-duplicate dedup). Creates the room (with `trail: [slug]`) if it doesn't exist.
+- `setSlug(roomId, slug)` is the single atomic operation that mutates a room: it updates the current slug AND updates the trail. Consecutive duplicates are suppressed; if `slug` matches the entry just before the last (a one-step back navigation), the last entry is popped so `A→B→A` collapses to `[A]`. Anything else appends. Creates the room (with `trail: [slug]`) if it doesn't exist.
 - Room lifecycle: join adds the WebSocket to the room's Set, leave removes; empty room deletes from store
 - On `join`: seeds the room with the joiner's `articleSlug` if it doesn't exist yet, then sends `sync` with `{slug, trail}` to the joiner; broadcasts updated participant count to all
 - On `navigate`: `setSlug` (atomic update + append), then broadcasts `navigate` to all members (including sender)
 - Binds on `0.0.0.0` (all interfaces) — supports local network and ngrok use
 - Port via `PORT` env var, defaults to 8080
-- Tests in `src/__tests__/server.test.ts` and `store.test.ts` cover trail seeding, consecutive-dedup, non-consecutive repeats, and late-joiner receiving the full trail through `sync`.
+- Tests in `src/__tests__/server.test.ts` and `store.test.ts` cover trail seeding, consecutive-dedup, one-step back collapse, non-back revisits being appended, and late-joiner receiving the full trail through `sync`.
 
 ### Wikipedia proxy (`apps/web/app/api/wikipedia/[slug]/route.ts`)
 - Fetches from `https://en.wikipedia.org/api/rest_v1/page/mobile-html/{slug}` — mobile-optimized endpoint, 3–10x smaller than Parsoid HTML, significantly faster fetch and processing
@@ -99,7 +99,7 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
 - **`useRoom` hook** (`hooks/useRoom.ts`): WebSocket client. WS URL from `NEXT_PUBLIC_WS_URL` env var, defaults to `ws://localhost:8080`. Exponential backoff reconnect (3 retries, max 8s delay). Stable `connect()` via refs — no re-registration on re-render. Returns `trail: string[]` alongside `participantCount`, `navigate`, etc. Trail state is replaced on `sync` and appended (with consecutive-dedup) on `navigate`.
 - **`ArticleView`** (`components/ArticleView.tsx`): renders sanitized HTML via `dangerouslySetInnerHTML`, intercepts `[data-wiki-slug]` clicks via event delegation on a stable container ref.
 - **`RoomBar`** (`components/RoomBar.tsx`): article title + participant count (only shown when >1) + back button + copy-link button (copies current URL to clipboard, shows "Copied!" for 2s).
-- **`NavigationTrail`** (`components/NavigationTrail.tsx`): horizontal strip rendered below `RoomBar` showing every article the room has visited, chevron-separated. The current entry is styled distinctly and non-interactive; past entries are buttons that delegate to `handleWikiLinkClick` (same path wiki-link clicks use — broadcasts `navigate` and optimistically loads). Horizontal scrolls on overflow with the rightmost entry pinned visible (`scrollLeft = scrollWidth` on trail change). `slugToLabel` (exported) converts `Foo_Bar` → `Foo Bar` for display.
+- **`NavigationTrail`** (`components/NavigationTrail.tsx`): horizontal strip rendered below `RoomBar` showing every article the room has visited, chevron-separated. The current entry is styled distinctly and non-interactive; past entries are buttons that delegate to `handleWikiLinkClick` (same path wiki-link clicks use — broadcasts `navigate` and optimistically loads). Horizontal scrolls on overflow with the rightmost entry pinned visible (`scrollLeft = scrollWidth` on trail change). An **Export** button is pinned to the right (outside the scroll area) — clicking it copies the trail to clipboard as arrow-separated article titles (`Title A → Title B → Title C`) with 2s "Copied!" feedback. `slugToLabel` (exported) converts `Foo_Bar` → `Foo Bar` for display; `buildExportText` (exported) generates the clipboard text from a slug array.
 - **`ConnectionBanner`** (`components/ConnectionBanner.tsx`): shown when WS retries are exhausted, with a retry button.
 
 ---
@@ -118,18 +118,22 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
 - **`wh-thumb` class for thumbnail CSS targeting** — `typeof="mw:File/Thumb"` is the reliable marker for thumbnail figures in Wikipedia mobile HTML, but CSS Modules mangles attribute selectors containing `:` and `/`. The `figure` transformTag reads `typeof` before it is stripped and adds `wh-thumb` to the class list. CSS targets `.wh-thumb` instead.
 - **Gallery images are a separate structure** — image galleries use `<ul class="gallery mw-gallery-packed"><li class="gallerybox">` rather than `<figure>` elements. They are styled separately via the `ul.gallery` / `li.gallerybox` CSS rules. The inline `style="width: ..."` attributes that Wikipedia sets on gallery items are stripped by sanitize-html, so gallery items use a fixed 200px fallback width.
 - **Infobox hoisting and the `wh-infobox-cluster` wrapper** — the infobox `<table class="infobox">` sits inside the lede `<section>` in Wikipedia mobile HTML. A float inside a section can only extend as tall as that section; `hoistInfobox` moves it before all sections so it floats across the full article. The wrapper `<div class="wh-infobox-cluster">` is necessary because HTML parsers foster-parent `<hr>` elements out of table contexts (they're invalid inside `<table>`), splitting one logical infobox into multiple `<table>` fragments with a bare `<hr>` between them. Wrapping the whole cluster in a floated `<div>` keeps the `<hr>` contained inside the float instead of bleeding full-width across the article.
-- **Navigation trail is an append-only history log, not a tree** — clicking a past trail entry does NOT truncate the log; it appends the backtracked slug as a new entry. The server applies consecutive-dedup so quick double-clicks don't duplicate, but non-consecutive repeats are faithfully recorded (e.g. `A → B → A` shows all three). Trail entries store slug only; the UI derives display text via `slug.replace(/_/g, ' ')`. The server is canonical; clients are mirrors and apply the same dedup rule on `navigate` to stay in sync without re-broadcasting the full trail.
+- **Navigation trail is a history log with a one-step back collapse** — navigating to a slug that's the entry just before the last (a back step) pops the last entry, so `A → B → A` becomes `[A]`. Consecutive duplicates are also suppressed (quick double-clicks). Any other revisit is appended faithfully, so `A → B → C → A` stays `[A, B, C, A]` — clicking deeper into the past does NOT truncate the log. Trail entries store slug only; the UI derives display text via `slug.replace(/_/g, ' ')`. The server is canonical; clients are mirrors and apply the same collapse rule on `navigate` to stay in sync without re-broadcasting the full trail.
 
 ---
 
 ## What's not built yet
 
 ### High priority
-- **Participant cursors / scroll presence** — Show where in the article other participants are reading (a subtle colored indicator per user). Makes the "together" feeling real.
-- **Collapsible, linked table of contents** — A TOC derived from article section headings, with anchor links to jump to each section, collapsible so it doesn't dominate the layout.
+- **Voice chat (WebRTC)** — Simple peer-to-peer voice between room participants using WebRTC. The WS server can act as a signaling channel (offer/answer/ICE candidate messages routed by room ID). No media server needed for small rooms; keep it minimal — mute toggle and a visual indicator of who's speaking are enough.
+- **First-article latency** — The initial article load is the slowest part of the experience. Investigate caching at the proxy layer (e.g. persisting processed HTML rather than re-running `processArticle` on every request), CDN edge caching, and whether the Wikipedia API call can be prefetched or warmed server-side at room creation. Perceived latency can also be reduced with a skeleton/shimmer placeholder while the fetch is in flight.
+- ~~**Exportable navigation trail**~~ — Done. Export button in `NavigationTrail` copies trail as arrow-separated titles to clipboard.
 
 ### Medium priority
+- **General navigation latency** — Subsequent article loads also feel sluggish. Profile the full round-trip: WS broadcast → proxy fetch → `processArticle` → React render. Look for the dominant cost (likely the Wikipedia fetch) and consider strategies like link-hover prefetch and client-side article caching (LRU, e.g. 10–20 articles) so back-navigation and revisits are instant.
+- **Collapsible, linked table of contents** — A TOC derived from article section headings, with anchor links to jump to each section, collapsible so it doesn't dominate the layout.
 - **`.env.example` files** — no documentation of required/optional env vars in each app.
+- **Participant cursors / scroll presence** — Show where in the article other participants are reading (a subtle colored indicator per user). Makes the "together" feeling real.
 
 ### Low priority
 - **Room expiry** — rooms live forever in `MemoryRoomStore` (until restart). A TTL or idle-cleanup pass would be needed for production.
