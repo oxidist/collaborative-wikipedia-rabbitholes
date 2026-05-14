@@ -32,7 +32,12 @@ export class RedisRoomStore implements RoomStore {
       room = { slug, trail: [slug] }
     } else {
       const trail = existing.trail
-      if (trail[trail.length - 1] !== slug) trail.push(slug)
+      const last = trail[trail.length - 1]
+      const prev = trail[trail.length - 2]
+      if (last !== slug) {
+        if (prev === slug) trail.pop()
+        else trail.push(slug)
+      }
       room = { slug, trail }
     }
     await this.redis.set(key, JSON.stringify(room))

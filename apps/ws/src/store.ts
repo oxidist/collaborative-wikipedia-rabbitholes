@@ -5,7 +5,9 @@ export interface Room {
 
 export interface RoomStore {
   get(roomId: string): Promise<Room | undefined>
-  // Atomic: set the current slug and append to trail (consecutive-dedup).
+  // Atomic: set the current slug and update the trail. Consecutive duplicates
+  // are suppressed; if slug matches the entry just before the last (a one-step
+  // back navigation), the last entry is popped so A→B→A collapses to [A].
   // Creates the room if it doesn't exist, seeding trail with [slug].
   setSlug(roomId: string, slug: string): Promise<void>
   delete(roomId: string): Promise<void>
@@ -27,8 +29,15 @@ export class MemoryRoomStore implements RoomStore {
       return
     }
     existing.slug = slug
-    if (existing.trail[existing.trail.length - 1] !== slug) {
-      existing.trail.push(slug)
+    const trail = existing.trail
+    const last = trail[trail.length - 1]
+    const prev = trail[trail.length - 2]
+    if (last === slug) {
+      // consecutive duplicate — no change
+    } else if (prev === slug) {
+      trail.pop()
+    } else {
+      trail.push(slug)
     }
   }
 

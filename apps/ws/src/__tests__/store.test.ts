@@ -35,11 +35,19 @@ describe('MemoryRoomStore', () => {
     expect((await store.get('room1'))?.trail).toEqual(['Octopus', 'Cephalopod'])
   })
 
-  it('records non-consecutive repeats', async () => {
+  it('collapses a one-step back navigation', async () => {
     await store.setSlug('room1', 'A')
     await store.setSlug('room1', 'B')
     await store.setSlug('room1', 'A')
-    expect((await store.get('room1'))?.trail).toEqual(['A', 'B', 'A'])
+    expect((await store.get('room1'))?.trail).toEqual(['A'])
+  })
+
+  it('keeps non-back revisits as appended entries', async () => {
+    await store.setSlug('room1', 'A')
+    await store.setSlug('room1', 'B')
+    await store.setSlug('room1', 'C')
+    await store.setSlug('room1', 'A')
+    expect((await store.get('room1'))?.trail).toEqual(['A', 'B', 'C', 'A'])
   })
 
   it('deletes a room', async () => {

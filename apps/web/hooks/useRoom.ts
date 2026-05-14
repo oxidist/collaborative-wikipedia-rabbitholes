@@ -80,7 +80,11 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
         if (msg.type === 'sync') {
           setTrail(msg.trail)
         } else if (msg.type === 'navigate') {
-          setTrail((prev) => (prev[prev.length - 1] === msg.slug ? prev : [...prev, msg.slug]))
+          setTrail((prev) => {
+            if (prev[prev.length - 1] === msg.slug) return prev
+            if (prev[prev.length - 2] === msg.slug) return prev.slice(0, -1)
+            return [...prev, msg.slug]
+          })
         }
         onMessageRef.current(msg)
       }
