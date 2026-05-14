@@ -166,6 +166,39 @@ describe('processArticle', () => {
     expect(result.html).toContain('id="cite_note-1"')
   })
 
+  it('rewrites anonymous pcs-ref-back-link href to cite_ref-N', () => {
+    // Real PCS mobile HTML: backlinks use pcs-ref-back-link-cite_note-N hrefs.
+    // The <sup id="cite_ref-N"> already exists in the static HTML.
+    const html = `
+      <p><sup id="cite_ref-1" class="mw-ref reference"><a href="./James_Starley#cite_note-1">[1]</a></sup></p>
+      <div class="mw-references-wrap"><ol>
+        <li id="cite_note-1"><a href="./James_Starley#pcs-ref-back-link-cite_note-1">↑</a></li>
+      </ol></div>
+    `
+    const result = processArticle(html, 'James_Starley')
+    expect(result.html).toContain('href="#cite_ref-1"')
+    expect(result.html).not.toContain('pcs-ref-back-link')
+  })
+
+  it('rewrites named pcs-ref-back-link href to cite_ref-NAME_N-0', () => {
+    // Named ref: cite_note-Bicycle-2 → cite_ref-Bicycle_2-0
+    const html = `
+      <p><sup id="cite_ref-Bicycle_2-0" class="mw-ref reference"><a href="./James_Starley#cite_note-Bicycle-2">[2]</a></sup></p>
+      <div class="mw-references-wrap"><ol>
+        <li id="cite_note-Bicycle-2"><a href="./James_Starley#pcs-ref-back-link-cite_note-Bicycle-2">↑</a></li>
+      </ol></div>
+    `
+    const result = processArticle(html, 'James_Starley')
+    expect(result.html).toContain('href="#cite_ref-Bicycle_2-0"')
+    expect(result.html).not.toContain('pcs-ref-back-link')
+  })
+
+  it('does not modify links when no pcs-ref-back-link hrefs are present', () => {
+    const html = '<p><sup id="cite_ref-1"><a href="./Test#cite_note-1">[1]</a></sup></p>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('pcs-ref-back-link')
+  })
+
   it('hoists wh-thumb figures to before the first <p> in a leaf section', () => {
     // Wikipedia mobile HTML puts figures AFTER paragraphs; float only works
     // on content that comes after the float in DOM order.

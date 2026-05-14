@@ -135,7 +135,38 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
     },
   })
 
-  return { html: hoistInfobox(hoistThumbnailsBeforeText(html)), title, slug }
+  return { html: hoistInfobox(hoistThumbnailsBeforeText(fixPcsBacklinks(html))), title, slug }
+}
+
+// PCS (Wikipedia's Page Content Service) rewrites reference backlinks so their
+// hrefs point to pcs-ref-back-link-cite_note-X IDs that only exist after PCS JS
+// runs. Without that JS, clicking ↑ in the reference list goes nowhere.
+//
+// The static HTML already has <sup id="cite_ref-*"> on every citation superscript
+// (from Parsoid, preserved by sanitize-html). We rewrite the backlink hrefs to
+// those existing IDs using MediaWiki's stable naming convention:
+//   cite_note-N          → cite_ref-N          (anonymous refs)
+//   cite_note-NAME-N     → cite_ref-NAME_N-0   (named refs, first use)
+function fixPcsBacklinks(html: string): string {
+  if (!html.includes('pcs-ref-back-link-')) return html
+  return html.replace(
+    /href="#pcs-ref-back-link-(cite_note-[^"]+)"/g,
+    (match, noteId) => {
+      const refId = citeNoteToRefId(noteId)
+      return refId ? `href="#${refId}"` : match
+    }
+  )
+}
+
+// Maps a cite_note-* ID to the corresponding first-use cite_ref-* ID.
+// Anonymous: cite_note-3      → cite_ref-3
+// Named:     cite_note-Foo-2  → cite_ref-Foo_2-0
+function citeNoteToRefId(noteId: string): string | null {
+  const stripped = noteId.replace(/^cite_note-/, '')
+  if (/^\d+$/.test(stripped)) return `cite_ref-${stripped}`
+  const m = stripped.match(/^(.+)-(\d+)$/)
+  if (m) return `cite_ref-${m[1]}_${m[2]}-0`
+  return null
 }
 
 // Wikipedia mobile HTML places the infobox <table class="infobox"> inside the lede
