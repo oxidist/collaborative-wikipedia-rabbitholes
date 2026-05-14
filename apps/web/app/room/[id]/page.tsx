@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import type { ServerMessage } from '@wikihole/types'
 import { ArticleView } from '@/components/ArticleView'
 import { RoomBar } from '@/components/RoomBar'
+import { NavigationTrail } from '@/components/NavigationTrail'
 import { ConnectionBanner } from '@/components/ConnectionBanner'
 import { useRoom } from '@/hooks/useRoom'
 
@@ -74,7 +75,7 @@ function RoomContent() {
     }
   }, [loadArticle])
 
-  const { participantCount, navigate, connectionLost, retry } = useRoom({
+  const { participantCount, trail, navigate, connectionLost, retry } = useRoom({
     roomId,
     initialSlug,
     onMessage: handleServerMessage,
@@ -106,6 +107,9 @@ function RoomContent() {
           canGoBack={history.length > 0}
           onBack={handleBack}
         />
+      )}
+      {article && trail.length > 0 && (
+        <NavigationTrail trail={trail} currentSlug={article.slug} onNavigate={handleWikiLinkClick} />
       )}
       {articleError ? (
         <div className="article-error" role="alert">
