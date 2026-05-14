@@ -14,6 +14,7 @@ interface UseRoomOptions {
 
 interface UseRoomReturn {
   participantCount: number
+  trail: string[]
   navigate: (slug: string) => void
   connectionLost: boolean
   retry: () => void
@@ -43,6 +44,7 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [participantCount, setParticipantCount] = useState(1)
+  const [trail, setTrail] = useState<string[]>([])
   const [connectionLost, setConnectionLost] = useState(false)
 
   // connect has [] deps — it never changes identity, so the useEffect below
@@ -75,6 +77,11 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
       if (msg.type === 'participants') {
         setParticipantCount(msg.count)
       } else {
+        if (msg.type === 'sync') {
+          setTrail(msg.trail)
+        } else if (msg.type === 'navigate') {
+          setTrail((prev) => (prev[prev.length - 1] === msg.slug ? prev : [...prev, msg.slug]))
+        }
         onMessageRef.current(msg)
       }
     }
@@ -127,5 +134,5 @@ export function useRoom({ roomId, initialSlug, onMessage }: UseRoomOptions): Use
     connect()
   }, [connect])
 
-  return { participantCount, navigate, connectionLost, retry }
+  return { participantCount, trail, navigate, connectionLost, retry }
 }

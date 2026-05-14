@@ -46,7 +46,7 @@ describe('createServer', () => {
     const msgPromise = nextMessage(ws)
     ws.send(JSON.stringify({ type: 'join', roomId: 'r1', articleSlug: 'Octopus' }))
     const msg = await msgPromise
-    expect(msg).toMatchObject({ type: 'sync', slug: 'Octopus' })
+    expect(msg).toMatchObject({ type: 'sync', slug: 'Octopus', trail: ['Octopus'] })
     await closeWs(ws)
   })
 
@@ -68,7 +68,7 @@ describe('createServer', () => {
     await new Promise((resolve) => setTimeout(resolve, 100))
 
     const sync = ws2Messages.find((m) => (m as { type: string }).type === 'sync')
-    expect(sync).toMatchObject({ type: 'sync', slug: 'Octopus' })
+    expect(sync).toMatchObject({ type: 'sync', slug: 'Octopus', trail: ['Octopus'] })
 
     await closeWs(ws1)
     await closeWs(ws2)
@@ -101,6 +101,37 @@ describe('createServer', () => {
     ws1.send(JSON.stringify({ type: 'navigate', roomId: 'r3', slug: 'Cephalopod' }))
     const nav = await ws2NavPromise
     expect(nav).toMatchObject({ type: 'navigate', slug: 'Cephalopod' })
+
+    await closeWs(ws1)
+    await closeWs(ws2)
+  })
+
+  it('late joiner receives the full trail after navigations', async () => {
+    await startServer()
+    const ws1 = await connect()
+    const sync1 = nextMessage(ws1)
+    ws1.send(JSON.stringify({ type: 'join', roomId: 'rT', articleSlug: 'A' }))
+    await sync1
+
+    // ws1 navigates A -> B -> C; collect ws1's navigates to know when each was applied
+    const seen: string[] = []
+    ws1.on('message', (data) => {
+      const m = JSON.parse(data.toString()) as { type: string; slug?: string }
+      if (m.type === 'navigate' && m.slug) seen.push(m.slug)
+    })
+    ws1.send(JSON.stringify({ type: 'navigate', roomId: 'rT', slug: 'B' }))
+    ws1.send(JSON.stringify({ type: 'navigate', roomId: 'rT', slug: 'C' }))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(seen).toEqual(['B', 'C'])
+
+    const ws2 = await connect()
+    const ws2Messages: unknown[] = []
+    ws2.on('message', (data) => ws2Messages.push(JSON.parse(data.toString())))
+    ws2.send(JSON.stringify({ type: 'join', roomId: 'rT' }))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    const sync = ws2Messages.find((m) => (m as { type: string }).type === 'sync')
+    expect(sync).toMatchObject({ type: 'sync', slug: 'C', trail: ['A', 'B', 'C'] })
 
     await closeWs(ws1)
     await closeWs(ws2)

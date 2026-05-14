@@ -49,23 +49,25 @@ export function createServer(port: number, store: RoomStore = new MemoryRoomStor
           }
           rooms.get(msg.roomId)!.add(ws)
 
-          const existing = await store.get(msg.roomId)
+          let existing = await store.get(msg.roomId)
+
+          if (existing === undefined && msg.articleSlug) {
+            await store.setSlug(msg.roomId, msg.articleSlug)
+            existing = await store.get(msg.roomId)
+          }
 
           // Guard: client may have disconnected during the await
           if (ws.readyState !== WebSocket.OPEN) return
 
           if (existing !== undefined) {
-            send(ws, { type: 'sync', slug: existing })
-          } else if (msg.articleSlug) {
-            await store.set(msg.roomId, msg.articleSlug)
-            send(ws, { type: 'sync', slug: msg.articleSlug })
+            send(ws, { type: 'sync', slug: existing.slug, trail: existing.trail })
           }
 
           broadcastParticipantCount(msg.roomId)
         } else if (msg.type === 'navigate') {
           // Only allow navigating in the room this client joined
           if (!currentRoomId || msg.roomId !== currentRoomId) return
-          await store.set(currentRoomId, msg.slug)
+          await store.setSlug(currentRoomId, msg.slug)
           broadcast(currentRoomId, { type: 'navigate', slug: msg.slug })
         }
       })().catch((err) => {
