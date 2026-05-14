@@ -16,6 +16,15 @@ export function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleV
   onClickRef.current = onWikiLinkClick
 
   const handleClick = useCallback((e: MouseEvent) => {
+    const toggle = (e.target as HTMLElement).closest('[data-infobox-toggle]') as HTMLElement | null
+    if (toggle) {
+      const cluster = toggle.closest('.wh-infobox-cluster') as HTMLElement | null
+      if (cluster) {
+        const expanded = cluster.classList.toggle('wh-expanded')
+        toggle.textContent = expanded ? 'Hide infobox' : 'Show infobox'
+      }
+      return
+    }
     const target = (e.target as HTMLElement).closest('[data-wiki-slug]') as HTMLElement | null
     if (!target) return
     // Don't intercept middle-click or Ctrl+click (open in new tab)

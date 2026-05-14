@@ -5,6 +5,6 @@ export type ClientMessage =
 
 // Server → Client
 export type ServerMessage =
-  | { type: "sync"; slug: string }          // sent on join — always, with current slug
+  | { type: "sync"; slug: string; trail: string[] } // sent on join — current slug + full trail
   | { type: "navigate"; slug: string }      // broadcasted when any participant navigates
   | { type: "participants"; count: number } // broadcasted on join/leave
