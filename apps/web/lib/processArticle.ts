@@ -135,7 +135,66 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
     },
   })
 
-  return { html: hoistThumbnailsBeforeText(html), title, slug }
+  return { html: hoistInfobox(hoistThumbnailsBeforeText(html)), title, slug }
+}
+
+// Wikipedia mobile HTML places the infobox <table class="infobox"> inside the lede
+// section. Moving it (and any parser-split continuations) to just before the first
+// section lets it float across the whole article.
+//
+// HTML parsers foster-parent <hr> out of <table> contexts, which can split a single
+// infobox into: <table class="infobox">…</table><hr><table class="infobox">…</table>.
+// We capture the whole cluster and wrap it in a single div so it floats as one unit
+// and the <hr> stays contained within the float instead of bleeding full-width.
+function hoistInfobox(html: string): string {
+  const sectionOpenMatch = /<section\b[^>]*>/.exec(html)
+  if (!sectionOpenMatch) return html
+
+  const bodyStart = sectionOpenMatch.index + sectionOpenMatch[0].length
+  const sectionEnd = html.indexOf('</section>', bodyStart)
+  if (sectionEnd === -1) return html
+
+  const body = html.slice(bodyStart, sectionEnd)
+
+  const infoboxOpenMatch = /<table\b[^>]*\bclass="[^"]*\binfobox\b[^"]*"[^>]*>/i.exec(body)
+  if (!infoboxOpenMatch) return html
+
+  // Extract the first table, then greedily grab any <hr> + <table> continuations
+  // that immediately follow (artefacts of the HTML parser splitting the infobox).
+  let clusterEnd = extractTableEnd(body, infoboxOpenMatch.index)
+  if (clusterEnd === -1) return html
+
+  let continuation: RegExpExecArray | null
+  while ((continuation = /^(\s*<hr\b[^>]*\/?>\s*)(<table\b)/.exec(body.slice(clusterEnd)))) {
+    const nextStart = clusterEnd + continuation[1].length
+    const nextEnd = extractTableEnd(body, nextStart)
+    if (nextEnd === -1) break
+    clusterEnd = nextEnd
+  }
+
+  const cluster = body.slice(infoboxOpenMatch.index, clusterEnd)
+  const newBody = body.slice(0, infoboxOpenMatch.index) + body.slice(clusterEnd)
+
+  const prefix = html.slice(0, sectionOpenMatch.index)
+  const suffix = html.slice(sectionEnd + '</section>'.length)
+  return `${prefix}<div class="wh-infobox-cluster">${cluster}</div>${sectionOpenMatch[0]}${newBody}</section>${suffix}`
+}
+
+// Walk nested <table> tags from startIndex and return the exclusive end of the
+// outermost </table>. Returns -1 if the table is not closed.
+function extractTableEnd(body: string, startIndex: number): number {
+  const re = /<(\/?)table\b/gi
+  re.lastIndex = startIndex
+  let depth = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(body)) !== null) {
+    if (m[1] === '/') {
+      if (--depth === 0) return m.index + 8 // '</table>' is 8 chars
+    } else {
+      depth++
+    }
+  }
+  return -1
 }
 
 // Wikipedia mobile HTML places <figure> elements AFTER the <p> text in each

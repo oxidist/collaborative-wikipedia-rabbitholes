@@ -105,11 +105,40 @@
   line-height: 1.4;
 }
 
-/* Clear floats at section boundaries so they don't bleed into the next section */
-.article :global(section)::after {
+/* Contain the infobox float at the end of the whole article */
+.article::after {
   content: '';
   display: table;
   clear: both;
+}
+
+/* --- Infobox (hoisted before sections so it floats alongside the whole article) ---
+   hoistInfobox wraps the infobox table(s) — including any <hr> separators produced
+   by foster-parenting — in a single div.wh-infobox-cluster. Floating the wrapper
+   keeps the <hr> contained inside the float instead of bleeding full-width. */
+
+.article :global(.wh-infobox-cluster) {
+  float: right;
+  clear: right;
+  margin: 0 0 1.5em 1.5em;
+  max-width: 320px;
+  width: 320px;
+  font-size: 0.875em;
+}
+
+.article :global(.wh-infobox-cluster table.infobox) {
+  float: none;
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .article :global(.wh-infobox-cluster) {
+    float: none;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 1em 0;
+  }
 }
 
 /* --- Image galleries (ul.gallery li.gallerybox structure) --- */

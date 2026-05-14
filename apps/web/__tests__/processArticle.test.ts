@@ -204,4 +204,77 @@ describe('processArticle', () => {
     expect(result.html).toContain('wh-thumb')
     expect(result.html).toContain('mw-halign-left')
   })
+
+  it('hoists infobox out of the lede section, wrapped in wh-infobox-cluster, before all sections', () => {
+    const html = [
+      '<section><p>Lede.</p><table class="infobox biography"><tr><td>Info</td></tr></table></section>',
+      '<section><h2>History</h2><p>More text.</p></section>',
+    ].join('')
+    const result = processArticle(html, 'Test')
+    const clusterIndex = result.html.indexOf('wh-infobox-cluster')
+    const firstSectionIndex = result.html.indexOf('<section')
+    expect(clusterIndex).toBeGreaterThanOrEqual(0)
+    expect(clusterIndex).toBeLessThan(firstSectionIndex)
+    expect(result.html).toContain('class="infobox biography"')
+  })
+
+  it('removes the infobox from inside the lede section after hoisting', () => {
+    const html = '<section><p>Lede.</p><table class="infobox"><tr><td>Info</td></tr></table></section>'
+    const result = processArticle(html, 'Test')
+    const sectionStart = result.html.indexOf('<section')
+    const infoboxInSection = result.html.indexOf('class="infobox"', sectionStart)
+    expect(infoboxInSection).toBe(-1)
+  })
+
+  it('handles infoboxes with nested tables (depth tracking)', () => {
+    const html = [
+      '<section><p>Lede.</p>',
+      '<table class="infobox"><tr><td><table><tr><td>nested</td></tr></table></td></tr></table>',
+      '</section>',
+    ].join('')
+    const result = processArticle(html, 'Test')
+    const clusterIndex = result.html.indexOf('wh-infobox-cluster')
+    const sectionIndex = result.html.indexOf('<section')
+    expect(clusterIndex).toBeGreaterThanOrEqual(0)
+    expect(clusterIndex).toBeLessThan(sectionIndex)
+    expect(result.html).toContain('nested')
+  })
+
+  it('captures <hr>-split infobox continuation into the same cluster', () => {
+    const html = [
+      '<section><p>Lede.</p>',
+      '<table class="infobox"><tr><td>Image</td></tr></table>',
+      '<hr>',
+      '<table class="infobox"><tr><td>Born</td></tr></table>',
+      '</section>',
+    ].join('')
+    const result = processArticle(html, 'Test')
+    // Both tables and the hr should be inside the cluster, before the section
+    const clusterStart = result.html.indexOf('wh-infobox-cluster')
+    const clusterEnd = result.html.indexOf('</div>', clusterStart) + 6
+    const clusterHtml = result.html.slice(clusterStart, clusterEnd)
+    expect(clusterHtml).toContain('Image')
+    expect(clusterHtml).toContain('Born')
+    // The section should start after the cluster
+    expect(result.html.indexOf('<section')).toBeGreaterThan(clusterEnd - 1)
+  })
+
+  it('does not hoist when there is no infobox in the lede section', () => {
+    const html = '<section><p>Lede.</p></section><section><h2>History</h2></section>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('wh-infobox-cluster')
+    expect(result.html.indexOf('<section')).toBeLessThan(result.html.indexOf('History'))
+  })
+
+  it('does not hoist an infobox that appears only in a later section', () => {
+    const html = [
+      '<section><p>Lede.</p></section>',
+      '<section><h2>Stats</h2><table class="infobox"><tr><td>Info</td></tr></table></section>',
+    ].join('')
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('wh-infobox-cluster')
+    const firstSectionIndex = result.html.indexOf('<section')
+    const infoboxIndex = result.html.indexOf('class="infobox"')
+    expect(infoboxIndex).toBeGreaterThan(firstSectionIndex)
+  })
 })
