@@ -130,6 +130,10 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         cls.includes('navbox') ||
         cls.includes('printfooter') ||
         cls.includes('catlinks') ||
+        // Wikipedia mobile HTML wraps collapsible tables in container chrome
+        // meant to be toggled by PCS JS. Without that JS, the collapsed header
+        // ("Quick facts ...") and bottom ("Close") leak into the rendered body.
+        cls.includes('pcs-collapse-table-collapsed') ||
         id === 'toc'
       )
     },

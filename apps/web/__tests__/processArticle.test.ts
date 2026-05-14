@@ -299,6 +299,29 @@ describe('processArticle', () => {
     expect(result.html.indexOf('<section')).toBeLessThan(result.html.indexOf('History'))
   })
 
+  it('strips pcs collapsed-table chrome (Quick facts header, Close footer)', () => {
+    const html = [
+      '<section>',
+      '<div class="pcs-collapse-table-container">',
+      '<div class="pcs-collapse-table-collapsed-container">',
+      '<strong>Quick facts</strong>',
+      '<span class="pcs-collapse-table-collapse-text"> Born, Died ...</span>',
+      '</div>',
+      '<div class="pcs-collapse-table-content">',
+      '<table class="infobox"><tr><td>data</td></tr></table>',
+      '</div>',
+      '<div class="pcs-collapse-table-collapsed-bottom">Close</div>',
+      '</div>',
+      '</section>',
+    ].join('')
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('Quick facts')
+    expect(result.html).not.toContain('Born, Died')
+    expect(result.html).not.toContain('Close')
+    // The infobox table itself is preserved
+    expect(result.html).toContain('class="infobox"')
+  })
+
   it('does not hoist an infobox that appears only in a later section', () => {
     const html = [
       '<section><p>Lede.</p></section>',
