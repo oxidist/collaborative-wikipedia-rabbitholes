@@ -208,7 +208,7 @@ function hoistInfobox(html: string): string {
 
   const prefix = html.slice(0, sectionOpenMatch.index)
   const suffix = html.slice(sectionEnd + '</section>'.length)
-  return `${prefix}<div class="wh-infobox-cluster">${cluster}</div>${sectionOpenMatch[0]}${newBody}</section>${suffix}`
+  return `${prefix}<div class="wh-infobox-cluster"><button class="wh-infobox-toggle" data-infobox-toggle>Show infobox</button>${cluster}</div>${sectionOpenMatch[0]}${newBody}</section>${suffix}`
 }
 
 // Walk nested <table> tags from startIndex and return the exclusive end of the

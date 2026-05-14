@@ -132,12 +132,36 @@
   margin: 0;
 }
 
+/* Hidden on desktop */
+.article :global(.wh-infobox-toggle) {
+  display: none;
+}
+
 @media (max-width: 600px) {
   .article :global(.wh-infobox-cluster) {
     float: none;
     width: 100%;
     max-width: 100%;
     margin: 0 0 1em 0;
+  }
+
+  .article :global(.wh-infobox-toggle) {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border: 1px solid #a2a9b1;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-family: system-ui, sans-serif;
+    cursor: pointer;
+    text-align: left;
+    margin-bottom: 4px;
+  }
+
+  .article :global(.wh-infobox-cluster:not(.wh-expanded) table.infobox),
+  .article :global(.wh-infobox-cluster:not(.wh-expanded) hr) {
+    display: none;
   }
 
   .article :global(.wh-thumb) {

@@ -1,8 +1,8 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import type { ClientMessage, ServerMessage } from '@wikihole/types'
+import type { RoomStore } from './store.js'
 import { MemoryRoomStore } from './store.js'
 
-const store = new MemoryRoomStore()
 // roomId → Set of open WebSocket connections
 const rooms = new Map<string, Set<WebSocket>>()
 
@@ -26,7 +26,7 @@ function broadcastParticipantCount(roomId: string): void {
   broadcast(roomId, { type: 'participants', count })
 }
 
-export function createServer(port: number): WebSocketServer {
+export function createServer(port: number, store: RoomStore = new MemoryRoomStore()): WebSocketServer {
   const wss = new WebSocketServer({ port, host: '0.0.0.0' })
 
   wss.on('connection', (ws) => {
