@@ -84,7 +84,6 @@
 }
 
 /* Image inside thumbnail */
-.article :global(.thumbimage) img,
 .article :global(.thumb) img {
   width: 100%;
   height: auto;
@@ -95,20 +94,7 @@
 .article :global(.thumbcaption) {
   color: #555;
   margin-top: 4px;
-  font-size: 0.9em;
   line-height: 1.4;
-}
-
-/* figure elements used as floating wrappers */
-.article :global(figure.floatright) {
-  float: right;
-  clear: right;
-  margin: 0 0 1em 1.4em;
-}
-.article :global(figure.floatleft) {
-  float: left;
-  clear: left;
-  margin: 0 1.4em 1em 0;
 }
 
 /* Clear floats at section boundaries so they don't bleed into the next section */
