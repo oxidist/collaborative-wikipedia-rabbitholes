@@ -128,4 +128,26 @@ describe('processArticle', () => {
     expect(result.html).toContain('height="300"')
     expect(result.html).not.toContain('data-src')
   })
+
+  it('preserves the references section (reflist)', () => {
+    const html = `
+      <p>Text with a footnote.<sup><a href="#cite_note-1">[1]</a></sup></p>
+      <div class="reflist">
+        <ol>
+          <li id="cite_note-1"><a href="#cite_ref-1">↑</a> Smith, J. (2020). <i>A Book</i>.</li>
+        </ol>
+      </div>
+    `
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('id="cite_note-1"')
+    expect(result.html).toContain('Smith, J.')
+  })
+
+  it('preserves footnote fragment hrefs so jump-to-reference works', () => {
+    const html = `<p><sup><a href="#cite_note-1">[1]</a></sup></p>
+      <div class="mw-references-wrap"><ol><li id="cite_note-1">Ref text.</li></ol></div>`
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('href="#cite_note-1"')
+    expect(result.html).toContain('id="cite_note-1"')
+  })
 })

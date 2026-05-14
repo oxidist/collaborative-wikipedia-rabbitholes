@@ -107,8 +107,6 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
         cls.includes('mw-editsection') ||
         cls.includes('mw-jump-link') ||
         cls.includes('navbox') ||
-        cls.includes('reflist') ||
-        cls.includes('mw-references-wrap') ||
         cls.includes('printfooter') ||
         cls.includes('catlinks') ||
         id === 'toc'
