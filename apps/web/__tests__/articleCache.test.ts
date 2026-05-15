@@ -34,9 +34,9 @@ describe('articleCache', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
     setCached('Einstein', article('Einstein'))
-    vi.setSystemTime(new Date('2026-01-01T00:00:59Z'))
+    vi.setSystemTime(new Date('2026-01-01T00:04:59Z'))
     expect(getCached('Einstein')).toBeDefined()
-    vi.setSystemTime(new Date('2026-01-01T00:01:01Z'))
+    vi.setSystemTime(new Date('2026-01-01T00:05:01Z'))
     expect(getCached('Einstein')).toBeUndefined()
   })
 

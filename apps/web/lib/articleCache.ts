@@ -1,6 +1,6 @@
 import type { ProcessedArticle } from './processArticle'
 
-const TTL_MS = 60_000
+const TTL_MS = 5 * 60_000
 const MAX_ENTRIES = 200
 
 interface Entry {
