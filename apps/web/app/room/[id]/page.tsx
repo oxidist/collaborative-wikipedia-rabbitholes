@@ -128,6 +128,8 @@ function RoomContent() {
     navigate(prev.slug)
   }, [history, navigate])
 
+  const getIsCached = useCallback((slug: string) => articleMapRef.current.has(slug), [])
+
   return (
     <>
       {connectionLost && <ConnectionBanner onRetry={retry} />}
@@ -165,6 +167,7 @@ function RoomContent() {
               html={article.html}
               onWikiLinkClick={handleWikiLinkClick}
               isTransitioning={isTransitioning}
+              isCached={getIsCached}
             />
           </div>
         ) : (
@@ -172,6 +175,7 @@ function RoomContent() {
             html={article.html}
             onWikiLinkClick={handleWikiLinkClick}
             isTransitioning={isTransitioning}
+            isCached={getIsCached}
           />
         )
       ) : isTransitioning || initialSlug ? (
