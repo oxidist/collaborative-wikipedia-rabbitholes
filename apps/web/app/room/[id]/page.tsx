@@ -60,6 +60,9 @@ function RoomContent() {
       return
     }
 
+    // already fetching this slug — a sync/navigate echo or double-click, ignore
+    if (loadingSlugRef.current === slug) return
+
     loadingSlugRef.current = slug
     setArticleError(false)
     setIsTransitioning(true)
