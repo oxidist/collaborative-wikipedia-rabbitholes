@@ -29,12 +29,21 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
       ...sanitizeHtml.defaults.allowedAttributes,
       '*': ['class', 'id'],
       a: ['href', 'data-wiki-slug', 'class', 'id', 'rel', 'target', 'tabindex'],
-      img: ['src', 'alt', 'width', 'height', 'class', 'loading'],
+      img: ['src', 'alt', 'width', 'height', 'class', 'loading', 'style'],
       td: ['colspan', 'rowspan', 'class'],
       th: ['colspan', 'rowspan', 'scope', 'class'],
       col: ['span', 'class'],
       colgroup: ['span'],
       abbr: ['title'],
+    },
+    // Only preserve the ex-unit dimensions that Wikipedia sets on inline math images
+    // (mwe-math-fallback-image-inline). All other img styles are stripped.
+    allowedStyles: {
+      img: {
+        width: [/^\d+(\.\d+)?ex$/],
+        height: [/^\d+(\.\d+)?ex$/],
+        'vertical-align': [/^-?\d+(\.\d+)?ex$/],
+      },
     },
     transformTags: {
       a(tagName, attribs) {

@@ -98,6 +98,14 @@
   display: block;
 }
 
+/* Inline math images inside figcaptions must stay inline; the .wh-thumb img
+   rule above sets display:block on all img children, which breaks math layout */
+.article :global(.wh-thumb .mwe-math-fallback-image-inline) {
+  display: inline;
+  width: auto;
+  height: auto;
+}
+
 /* Caption */
 .article :global(.wh-thumb figcaption) {
   color: #555;

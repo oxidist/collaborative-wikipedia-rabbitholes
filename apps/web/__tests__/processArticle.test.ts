@@ -134,6 +134,21 @@ describe('processArticle', () => {
     expect(result.html).not.toContain('R0lGODlh')
   })
 
+  it('preserves ex-unit width/height/vertical-align style on inline math images', () => {
+    const html = '<p>The formula <img src="//wikimedia.org/api/rest_v1/media/math/render/svg/abc" class="mwe-math-fallback-image-inline" style="vertical-align: -0.838ex; width:12.167ex; height:3.009ex;" alt="f(x)"> appears here.</p>'
+    const result = processArticle(html, 'Test')
+    expect(result.html).toContain('width:12.167ex')
+    expect(result.html).toContain('height:3.009ex')
+    expect(result.html).toContain('vertical-align:-0.838ex')
+  })
+
+  it('strips non-math inline styles from images', () => {
+    const html = '<img src="https://upload.wikimedia.org/photo.jpg" style="border: 1px solid red; float: left;" alt="photo">'
+    const result = processArticle(html, 'Test')
+    expect(result.html).not.toContain('border')
+    expect(result.html).not.toContain('float')
+  })
+
   it('converts Wikipedia span placeholders with data-src into img tags', () => {
     const html = '<figure><span data-src="//upload.wikimedia.org/photo.jpg" data-width="500" data-height="300" data-class="mw-file-element"></span></figure>'
     const result = processArticle(html, 'Test')
