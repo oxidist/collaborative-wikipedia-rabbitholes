@@ -312,6 +312,36 @@ body {
   padding-bottom: 48px;
 }
 
+/* Two-column grid: TOC sidebar (200px) + article. Falls back to single
+   column on mobile with the TOC stacked above the article. */
+.room-content-layout {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-top: 80px;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 48px;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* article-container has its own padding/max-width for standalone use;
+   reset those inside the grid to avoid double-padding. */
+.room-content-layout .article-container {
+  padding: 0;
+  max-width: none;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .room-content-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 /* Connection lost banner */
 .connection-banner {
   position: fixed;

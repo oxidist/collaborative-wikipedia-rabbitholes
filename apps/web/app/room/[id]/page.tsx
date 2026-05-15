@@ -9,11 +9,14 @@ import { NavigationTrail } from '@/components/NavigationTrail'
 import { ConnectionBanner } from '@/components/ConnectionBanner'
 import { useRoom } from '@/hooks/useRoom'
 import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { TableOfContents } from '@/components/TableOfContents'
+import type { TocEntry } from '@/lib/processArticle'
 
 interface ArticleData {
   html: string
   title: string
   slug: string
+  toc: TocEntry[]
 }
 
 async function fetchArticle(slug: string): Promise<ArticleData> {
@@ -134,11 +137,22 @@ function RoomContent() {
           )}
         </div>
       ) : article ? (
-        <ArticleView
-          html={article.html}
-          onWikiLinkClick={handleWikiLinkClick}
-          isTransitioning={isTransitioning}
-        />
+        article.toc.length > 0 ? (
+          <div className="room-content-layout">
+            <TableOfContents toc={article.toc} />
+            <ArticleView
+              html={article.html}
+              onWikiLinkClick={handleWikiLinkClick}
+              isTransitioning={isTransitioning}
+            />
+          </div>
+        ) : (
+          <ArticleView
+            html={article.html}
+            onWikiLinkClick={handleWikiLinkClick}
+            isTransitioning={isTransitioning}
+          />
+        )
       ) : isTransitioning || initialSlug ? (
         <p className="article-loading" aria-live="polite">Loading…</p>
       ) : (
