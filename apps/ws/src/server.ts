@@ -36,6 +36,7 @@ function broadcastParticipantCount(roomId: string): void {
 
 export function createServer(port: number, store: RoomStore = new MemoryRoomStore()): WebSocketServer {
   const wss = new WebSocketServer({ port, host: '0.0.0.0' })
+  const deletionTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   wss.on('connection', (ws) => {
     let currentRoomId: string | null = null
@@ -56,6 +57,12 @@ export function createServer(port: number, store: RoomStore = new MemoryRoomStor
             rooms.set(msg.roomId, new Set())
           }
           rooms.get(msg.roomId)!.add(ws)
+
+          const pendingTimer = deletionTimers.get(msg.roomId)
+          if (pendingTimer !== undefined) {
+            clearTimeout(pendingTimer)
+            deletionTimers.delete(msg.roomId)
+          }
 
           let existing = await store.get(msg.roomId)
 
@@ -102,8 +109,13 @@ export function createServer(port: number, store: RoomStore = new MemoryRoomStor
         if (!members) return
         members.delete(ws)
         if (members.size === 0) {
-          rooms.delete(currentRoomId)
-          await store.delete(currentRoomId)
+          const roomId = currentRoomId
+          const timer = setTimeout(() => {
+            rooms.delete(roomId)
+            void store.delete(roomId)
+            deletionTimers.delete(roomId)
+          }, 30_000)
+          deletionTimers.set(roomId, timer)
         } else {
           broadcastParticipantCount(currentRoomId)
         }
