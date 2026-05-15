@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { processArticle } from '../lib/processArticle'
+import { processArticle, extractToc } from '../lib/processArticle'
 
 describe('processArticle', () => {
   it('extracts the title from the first h1', () => {
@@ -367,5 +367,56 @@ describe('processArticle', () => {
     const firstSectionIndex = result.html.indexOf('<section')
     const infoboxIndex = result.html.indexOf('class="infobox"')
     expect(infoboxIndex).toBeGreaterThan(firstSectionIndex)
+  })
+
+  it('includes toc extracted from h2/h3 headings with ids', () => {
+    const html = '<h2 id="History">History</h2><p>text</p><h3 id="Origins">Origins</h3>'
+    const result = processArticle(html, 'Test')
+    expect(result.toc).toEqual([
+      { id: 'History', text: 'History', level: 2 },
+      { id: 'Origins', text: 'Origins', level: 3 },
+    ])
+  })
+
+  it('returns empty toc for articles with no h2/h3 headings', () => {
+    const result = processArticle('<p>text only</p>', 'Test')
+    expect(result.toc).toEqual([])
+  })
+})
+
+describe('extractToc', () => {
+  it('extracts an h2 heading with an id', () => {
+    expect(extractToc('<h2 id="Career">Career</h2><p>text</p>')).toEqual([
+      { id: 'Career', text: 'Career', level: 2 },
+    ])
+  })
+
+  it('extracts an h3 heading with an id', () => {
+    expect(extractToc('<h3 id="Early_work">Early work</h3>')).toEqual([
+      { id: 'Early_work', text: 'Early work', level: 3 },
+    ])
+  })
+
+  it('returns entries in DOM order for mixed h2 and h3', () => {
+    const html = '<h2 id="Career">Career</h2><h3 id="Early_work">Early work</h3><h2 id="Legacy">Legacy</h2>'
+    expect(extractToc(html)).toEqual([
+      { id: 'Career', text: 'Career', level: 2 },
+      { id: 'Early_work', text: 'Early work', level: 3 },
+      { id: 'Legacy', text: 'Legacy', level: 2 },
+    ])
+  })
+
+  it('strips inner HTML tags from heading text', () => {
+    expect(extractToc('<h2 id="Career"><span class="mw-headline">Career</span></h2>')).toEqual([
+      { id: 'Career', text: 'Career', level: 2 },
+    ])
+  })
+
+  it('skips headings without an id attribute', () => {
+    expect(extractToc('<h2>No id here</h2>')).toEqual([])
+  })
+
+  it('returns empty array when html has no h2 or h3 headings', () => {
+    expect(extractToc('<p>text</p>')).toEqual([])
   })
 })

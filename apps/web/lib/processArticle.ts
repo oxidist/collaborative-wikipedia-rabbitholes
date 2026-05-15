@@ -1,9 +1,16 @@
 import sanitizeHtml from 'sanitize-html'
 
+export interface TocEntry {
+  id: string
+  text: string
+  level: 2 | 3
+}
+
 export interface ProcessedArticle {
   html: string
   title: string
   slug: string
+  toc: TocEntry[]
 }
 
 export function processArticle(rawHtml: string, slug: string): ProcessedArticle {
@@ -154,7 +161,21 @@ export function processArticle(rawHtml: string, slug: string): ProcessedArticle 
     },
   })
 
-  return { html: hoistInfobox(hoistThumbnailsBeforeText(fixPcsBacklinks(html))), title, slug }
+  const processedHtml = hoistInfobox(hoistThumbnailsBeforeText(fixPcsBacklinks(html)))
+  return { html: processedHtml, title, slug, toc: extractToc(processedHtml) }
+}
+
+export function extractToc(html: string): TocEntry[] {
+  const entries: TocEntry[] = []
+  const re = /<h([23])\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) !== null) {
+    const level = parseInt(m[1], 10) as 2 | 3
+    const id = m[2]
+    const text = m[3].replace(/<[^>]+>/g, '').trim()
+    if (text) entries.push({ id, text, level })
+  }
+  return entries
 }
 
 // PCS (Wikipedia's Page Content Service) rewrites reference backlinks so their

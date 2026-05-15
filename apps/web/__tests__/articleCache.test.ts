@@ -8,7 +8,7 @@ import {
 } from '../lib/articleCache'
 
 function article(slug: string): ProcessedArticle {
-  return { slug, title: slug, html: `<p>${slug}</p>` }
+  return { slug, title: slug, html: `<p>${slug}</p>`, toc: [] }
 }
 
 beforeEach(() => {
