@@ -37,6 +37,7 @@ function RoomContent() {
   const articleRef = useRef<ArticleData | null>(null)
   const loadingSlugRef = useRef<string | null>(null)
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const articleMapRef = useRef<Map<string, ArticleData>>(new Map())
 
   useEffect(() => {
     return () => {
@@ -46,11 +47,25 @@ function RoomContent() {
 
   const loadArticle = useCallback(async (slug: string) => {
     if (!slug) return
+
+    const cached = articleMapRef.current.get(slug)
+    if (cached) {
+      setArticleError(false)
+      const prev = articleRef.current
+      if (prev && prev.slug !== slug) {
+        setHistory((h) => [...h, prev])
+      }
+      articleRef.current = cached
+      setArticle(cached)
+      return
+    }
+
     loadingSlugRef.current = slug
     setArticleError(false)
     setIsTransitioning(true)
     try {
       const data = await fetchArticle(slug)
+      articleMapRef.current.set(slug, data)
       const prev = articleRef.current
       if (prev && prev.slug !== slug) {
         setHistory((h) => [...h, prev])
