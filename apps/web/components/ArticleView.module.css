@@ -181,6 +181,77 @@
   }
 }
 
+/* --- Multi-image thumbnails (tmulti / "multiple image" template) ---
+   Wikipedia uses div.thumb.tmulti.tright (or .tleft) for side-by-side image
+   boxes. The TemplateStyles <style> block and inline style= widths are both
+   stripped by sanitize-html, so we supply the layout here. */
+
+.article :global(div.thumb.tright) {
+  float: right;
+  clear: right;
+  margin: 0 0 1em 1.4em;
+}
+
+.article :global(div.thumb.tleft) {
+  float: left;
+  clear: left;
+  margin: 0 1.4em 1em 0;
+}
+
+.article :global(div.thumb.tmulti) {
+  background: #f8f9fa;
+  border: 1px solid #a2a9b1;
+  padding: 4px;
+  font-size: 0.85em;
+  text-align: center;
+  max-width: min(420px, 100%);
+}
+
+.article :global(.multiimageinner) {
+  display: flex;
+  flex-direction: column;
+}
+
+.article :global(.trow) {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.article :global(.tsingle) {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.article :global(.thumbimage) {
+  display: block;
+}
+
+.article :global(.thumbimage img) {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.article :global(.thumbcaption) {
+  margin-top: 4px;
+  color: #555;
+  line-height: 1.4;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .article :global(div.thumb.tright),
+  .article :global(div.thumb.tleft) {
+    float: none;
+    clear: both;
+    margin: 0 0 1em 0;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
 /* --- Image galleries (ul.gallery li.gallerybox structure) --- */
 
 .article :global(ul.gallery) {
