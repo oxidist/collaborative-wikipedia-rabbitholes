@@ -36,6 +36,16 @@ export class VoiceChatSession {
   }
 
   private buildPc(): RTCPeerConnection {
+    // Close existing PC if glare caused a second negotiation to start
+    if (this.pc) {
+      this.pc.onicecandidate = null
+      this.pc.ontrack = null
+      this.pc.onconnectionstatechange = null
+      this.pc.close()
+    }
+    this.pendingCandidates = []
+    this.remoteDescSet = false
+
     const pc = new RTCPeerConnection(STUN_CONFIG)
     this.pc = pc
 
@@ -54,6 +64,7 @@ export class VoiceChatSession {
         const source = this.audioCtx.createMediaStreamSource(new MediaStream([e.track]))
         this.remoteAnalyser = this.audioCtx.createAnalyser()
         source.connect(this.remoteAnalyser)
+        this.remoteAnalyser.connect(this.audioCtx.destination)
       }
     }
 
@@ -83,9 +94,14 @@ export class VoiceChatSession {
       if (this.remoteAnalyser) {
         this.remoteAnalyser.getByteTimeDomainData(buf)
         const rRms = Math.sqrt(buf.reduce((s, v) => s + ((v - 128) / 128) ** 2, 0) / buf.length)
-        this.emit({ speaking, remoteSpeaking: rRms > SPEAKING_THRESHOLD })
+        const remoteSpeaking = rRms > SPEAKING_THRESHOLD
+        if (speaking !== this.state.speaking || remoteSpeaking !== this.state.remoteSpeaking) {
+          this.emit({ speaking, remoteSpeaking })
+        }
       } else {
-        this.emit({ speaking })
+        if (speaking !== this.state.speaking) {
+          this.emit({ speaking })
+        }
       }
 
       this.animFrameId = requestAnimationFrame(poll)
@@ -147,7 +163,7 @@ export class VoiceChatSession {
   }
 
   async handleAnswer(sdp: string): Promise<void> {
-    if (!this.pc) return
+    if (!this.pc || this.pc.signalingState !== 'have-local-offer') return
     await this.pc.setRemoteDescription({ type: 'answer', sdp })
     this.remoteDescSet = true
     await this.drainCandidates()

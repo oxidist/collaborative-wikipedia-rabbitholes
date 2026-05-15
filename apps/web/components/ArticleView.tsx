@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { memo, useEffect, useRef, useCallback } from 'react'
 import styles from './ArticleView.module.css'
 
 interface ArticleViewProps {
@@ -9,7 +9,7 @@ interface ArticleViewProps {
   isTransitioning: boolean
 }
 
-export function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleViewProps) {
+export const ArticleView = memo(function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Keep a stable ref so the event listener doesn't need re-registration on each render
   const onClickRef = useRef(onWikiLinkClick)
@@ -55,4 +55,4 @@ export function ArticleView({ html, onWikiLinkClick, isTransitioning }: ArticleV
       />
     </div>
   )
-}
+})

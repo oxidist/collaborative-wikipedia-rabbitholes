@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ClientMessage } from '@wikihole/types'
-import { VoiceChatSession } from '../lib/voiceChatSession'
+import { VoiceChatSession, type VoiceState } from '../lib/voiceChatSession'
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,7 @@ class MockPeerConnection {
   localDescription: { type: string; sdp: string } | null = null
   remoteDescription: { type: string; sdp: string } | null = null
   connectionState = 'new'
+  signalingState = 'stable'
   onicecandidate: ((e: { candidate: { toJSON: () => object } | null }) => void) | null = null
   ontrack: ((e: { track: object }) => void) | null = null
   onconnectionstatechange: (() => void) | null = null
@@ -29,9 +30,11 @@ class MockPeerConnection {
   createAnswer = vi.fn().mockResolvedValue({ type: 'answer', sdp: 'mock-answer-sdp' })
   setLocalDescription = vi.fn().mockImplementation(async (desc: { type: string; sdp: string }) => {
     this.localDescription = desc
+    this.signalingState = desc.type === 'offer' ? 'have-local-offer' : 'stable'
   })
   setRemoteDescription = vi.fn().mockImplementation(async (desc: { type: string; sdp: string }) => {
     this.remoteDescription = desc
+    this.signalingState = desc.type === 'offer' ? 'have-remote-offer' : 'stable'
   })
   addIceCandidate = vi.fn().mockResolvedValue(undefined)
   close = vi.fn()
@@ -189,5 +192,53 @@ describe('VoiceChatSession', () => {
   it('leave() before join() — is a no-op', () => {
     const session = new VoiceChatSession('room1', vi.fn(), vi.fn())
     expect(() => session.leave()).not.toThrow()
+  })
+
+  describe('startSpeakingDetection — change-gated emit', () => {
+    let rafCallback: FrameRequestCallback | null
+
+    beforeEach(() => {
+      rafCallback = null
+      vi.stubGlobal('requestAnimationFrame', vi.fn((cb: FrameRequestCallback) => {
+        rafCallback = cb
+        return 0
+      }))
+    })
+
+    it('does not emit on frames where speaking status is unchanged', async () => {
+      const states: VoiceState[] = []
+      const session = new VoiceChatSession('room1', vi.fn(), (s) => states.push(s))
+      await session.join()
+      const baseline = states.length
+
+      // Analyser returns silence — speaking stays false across all frames
+      rafCallback!(0)
+      rafCallback!(0)
+      rafCallback!(0)
+
+      expect(states.length).toBe(baseline)
+    })
+
+    it('emits once when speaking transitions false→true, not again while still speaking', async () => {
+      const localAnalyser = new MockAnalyserNode()
+      const audioCtx = new MockAudioContext()
+      audioCtx.createAnalyser = vi.fn(() => localAnalyser)
+      vi.stubGlobal('AudioContext', vi.fn(() => audioCtx))
+
+      const states: VoiceState[] = []
+      const session = new VoiceChatSession('room1', vi.fn(), (s) => states.push(s))
+      await session.join()
+      const baseline = states.length
+
+      // Switch analyser to loud audio (RMS >> SPEAKING_THRESHOLD)
+      localAnalyser.getByteTimeDomainData = vi.fn((buf: Uint8Array) => buf.fill(200))
+
+      rafCallback!(0) // false → true transition → one emit
+      expect(states.length).toBe(baseline + 1)
+      expect(states.at(-1)?.speaking).toBe(true)
+
+      rafCallback!(0) // still true — no emit
+      expect(states.length).toBe(baseline + 1)
+    })
   })
 })
