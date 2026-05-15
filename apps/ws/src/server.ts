@@ -20,6 +20,14 @@ function broadcast(roomId: string, msg: ServerMessage): void {
   }
 }
 
+function broadcastOthers(roomId: string, sender: WebSocket, msg: ServerMessage): void {
+  const members = rooms.get(roomId)
+  if (!members) return
+  for (const client of members) {
+    if (client !== sender) send(client, msg)
+  }
+}
+
 function broadcastParticipantCount(roomId: string): void {
   const members = rooms.get(roomId)
   const count = members?.size ?? 0
@@ -69,6 +77,18 @@ export function createServer(port: number, store: RoomStore = new MemoryRoomStor
           if (!currentRoomId || msg.roomId !== currentRoomId) return
           await store.setSlug(currentRoomId, msg.slug)
           broadcast(currentRoomId, { type: 'navigate', slug: msg.slug })
+        } else if (msg.type === 'voice-offer') {
+          if (!currentRoomId || msg.roomId !== currentRoomId) return
+          broadcastOthers(currentRoomId, ws, { type: 'voice-offer', sdp: msg.sdp })
+        } else if (msg.type === 'voice-answer') {
+          if (!currentRoomId || msg.roomId !== currentRoomId) return
+          broadcastOthers(currentRoomId, ws, { type: 'voice-answer', sdp: msg.sdp })
+        } else if (msg.type === 'voice-ice') {
+          if (!currentRoomId || msg.roomId !== currentRoomId) return
+          broadcastOthers(currentRoomId, ws, { type: 'voice-ice', candidate: msg.candidate })
+        } else if (msg.type === 'voice-state') {
+          if (!currentRoomId || msg.roomId !== currentRoomId) return
+          broadcastOthers(currentRoomId, ws, { type: 'voice-state', muted: msg.muted })
         }
       })().catch((err) => {
         console.error('[ws] message handler error:', err)

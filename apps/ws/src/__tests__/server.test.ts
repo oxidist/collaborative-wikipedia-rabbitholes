@@ -167,4 +167,61 @@ describe('createServer', () => {
     await closeWs(ws1)
     await closeWs(ws2)
   })
+
+  it('relays voice-offer to other room members but not the sender', async () => {
+    await startServer()
+    const ws1 = await connect()
+    const ws2 = await connect()
+    const ws3 = await connect()
+
+    // ws1 creates the room
+    const sync1 = nextMessage(ws1)
+    ws1.send(JSON.stringify({ type: 'join', roomId: 'rv1', articleSlug: 'A' }))
+    await sync1
+
+    // ws2 joins
+    await new Promise<void>((resolve) => {
+      ws2.once('message', () => resolve())
+      ws2.send(JSON.stringify({ type: 'join', roomId: 'rv1' }))
+    })
+
+    // ws3 joins
+    await new Promise<void>((resolve) => {
+      ws3.once('message', () => resolve())
+      ws3.send(JSON.stringify({ type: 'join', roomId: 'rv1' }))
+    })
+
+    // Track everything ws1 receives after this point
+    const ws1Received: unknown[] = []
+    ws1.on('message', (data) => ws1Received.push(JSON.parse(data.toString())))
+
+    // ws2 and ws3 wait for voice-offer
+    const ws2VoiceOffer = new Promise<unknown>((resolve) => {
+      ws2.on('message', (data) => {
+        const msg = JSON.parse(data.toString()) as { type: string }
+        if (msg.type === 'voice-offer') resolve(msg)
+      })
+    })
+    const ws3VoiceOffer = new Promise<unknown>((resolve) => {
+      ws3.on('message', (data) => {
+        const msg = JSON.parse(data.toString()) as { type: string }
+        if (msg.type === 'voice-offer') resolve(msg)
+      })
+    })
+
+    // ws1 sends voice-offer
+    ws1.send(JSON.stringify({ type: 'voice-offer', roomId: 'rv1', sdp: 'test-sdp' }))
+
+    const [msg2, msg3] = await Promise.all([ws2VoiceOffer, ws3VoiceOffer])
+    expect(msg2).toMatchObject({ type: 'voice-offer', sdp: 'test-sdp' })
+    expect(msg3).toMatchObject({ type: 'voice-offer', sdp: 'test-sdp' })
+
+    // Sender (ws1) must NOT receive its own voice-offer back
+    await new Promise((r) => setTimeout(r, 100))
+    expect(ws1Received.some((m) => (m as { type: string }).type === 'voice-offer')).toBe(false)
+
+    await closeWs(ws1)
+    await closeWs(ws2)
+    await closeWs(ws3)
+  })
 })
