@@ -1,9 +1,9 @@
 # Wikihole — Handoff
 
-**Last updated:** 2026-05-15 (session 11)  
+**Last updated:** 2026-05-15 (session 12)  
 **For:** Future Claude Sonnet session
 
-**Active branch:** `dev` — created from `master` and contains all merged feature work. `feature/navigation-trail` → `feature/redis-collapsible-infobox` → `dev` (previous sessions). `voice` branch merged (no-ff) into `dev` (session 10). TOC feature implemented directly on `dev` (session 11). `master` has not been updated and is intentionally behind.
+**Active branch:** `master` — `dev` was merged into `master` at the end of session 12. `master` is now fully up to date. Start new feature work from `master`.
 
 ---
 
@@ -150,11 +150,12 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
 ## What's not built yet
 
 ### High priority
-- **First-article latency** — The initial article load is the slowest part of the experience. Investigate caching at the proxy layer (e.g. persisting processed HTML rather than re-running `processArticle` on every request), CDN edge caching, and whether the Wikipedia API call can be prefetched or warmed server-side at room creation. Perceived latency can also be reduced with a skeleton/shimmer placeholder while the fetch is in flight.
+- ~~**First-article latency**~~ — Done (session 12). Article fetch now starts on page mount in parallel with WS handshake. Client-side session Map cache gives instant revisits. Hover prefetch (`pointerover` on wiki links) warms the server cache before click. Server-side LRU TTL raised from 60s to 5 min. See `articleCache.ts`, `ArticleView.tsx`, `page.tsx`.
 - ~~**Exportable navigation trail**~~ — Done. Export button in `NavigationTrail` copies trail as arrow-separated titles to clipboard.
+- **Wikipedia API tail latency** — Wikipedia's mobile HTML API has highly variable response times (50ms–1.8s). Cold fetches (article not in server cache) still block on Wikipedia. Three approaches worth pursuing: (1) stale-while-revalidate in `articleCache` — serve stale content immediately and refresh in background; (2) parallel fetch race — after 600ms, fire a second request and take whichever resolves first; (3) proactive WS-server warming — when the WS server broadcasts `navigate`, it calls the Next.js proxy to pre-warm the cache. See `docs/wikipedia-latency-problem.md` for a detailed brief.
 
 ### Medium priority
-- **General navigation latency** — Subsequent article loads also feel sluggish. Profile the full round-trip: WS broadcast → proxy fetch → `processArticle` → React render. Look for the dominant cost (likely the Wikipedia fetch) and consider strategies like link-hover prefetch and client-side article caching (LRU, e.g. 10–20 articles) so back-navigation and revisits are instant.
+- ~~**General navigation latency**~~ — Done (session 12). Hover prefetch, client-side article Map cache, eager first-article fetch all implemented.
 - ~~**Collapsible, linked table of contents**~~ — Done. Sticky sidebar on desktop, inline collapsible on mobile, h2+h3 depth with section numbers. See `TableOfContents` component and `extractToc` in processArticle.
 - **`.env.example` files** — no documentation of required/optional env vars in each app.
 - **Participant cursors / scroll presence** — Show where in the article other participants are reading (a subtle colored indicator per user). Makes the "together" feeling real.
