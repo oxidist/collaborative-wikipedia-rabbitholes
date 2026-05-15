@@ -18,6 +18,10 @@ export function buildTocNumbers(toc: TocEntry[]): string[] {
       h3Count = 0
       numbers.push(`${h2Count}.`)
     } else {
+      if (h2Count === 0) {
+        numbers.push('')
+        continue
+      }
       h3Count++
       numbers.push(`${h2Count}.${h3Count}`)
     }

@@ -139,7 +139,7 @@ function RoomContent() {
       ) : article ? (
         article.toc.length > 0 ? (
           <div className="room-content-layout">
-            <TableOfContents toc={article.toc} />
+            <TableOfContents key={article.slug} toc={article.toc} />
             <ArticleView
               html={article.html}
               onWikiLinkClick={handleWikiLinkClick}

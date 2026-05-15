@@ -6,7 +6,6 @@
   border-radius: 4px;
   font-family: system-ui, sans-serif;
   font-size: 0.875rem;
-  overflow: hidden;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
 }

@@ -35,4 +35,13 @@ describe('buildTocNumbers', () => {
   it('returns empty array for empty input', () => {
     expect(buildTocNumbers([])).toEqual([])
   })
+
+  it('skips numbering for h3 entries that appear before any h2', () => {
+    const toc: TocEntry[] = [
+      { id: 'early', text: 'Early', level: 3 },
+      { id: 'a', text: 'A', level: 2 },
+      { id: 'a1', text: 'A1', level: 3 },
+    ]
+    expect(buildTocNumbers(toc)).toEqual(['', '1.', '1.1'])
+  })
 })
