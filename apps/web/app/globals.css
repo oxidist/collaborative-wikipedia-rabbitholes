@@ -315,7 +315,7 @@ body {
 /* Two-column grid: TOC sidebar (200px) + article. Falls back to single
    column on mobile with the TOC stacked above the article. */
 .room-content-layout {
-  max-width: 960px;
+  max-width: 1184px;
   margin: 0 auto;
   padding-top: 80px;
   padding-left: 24px;
