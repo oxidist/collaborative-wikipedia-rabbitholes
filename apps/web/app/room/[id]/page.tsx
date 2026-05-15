@@ -81,6 +81,12 @@ function RoomContent() {
     }
   }, [])
 
+  useEffect(() => {
+    if (initialSlug) {
+      void loadArticle(initialSlug)
+    }
+  }, [initialSlug, loadArticle])
+
   const { participantCount, trail, navigate, sendSignal, connectionLost, retry } = useRoom({
     roomId,
     initialSlug,
@@ -95,7 +101,7 @@ function RoomContent() {
 
   function handleServerMessage(msg: ServerMessage) {
     if (msg.type === 'sync' || msg.type === 'navigate') {
-      if (msg.slug !== loadingSlugRef.current) {
+      if (msg.slug !== loadingSlugRef.current && msg.slug !== articleRef.current?.slug) {
         loadArticle(msg.slug)
       }
     } else if (
