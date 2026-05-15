@@ -1,9 +1,9 @@
 # Wikihole — Handoff
 
-**Last updated:** 2026-05-15 (session 9)  
+**Last updated:** 2026-05-15 (session 10)  
 **For:** Future Claude Sonnet session
 
-**Active branch:** `dev` — created from `master` and currently contains all merged feature work. `feature/navigation-trail` was merged into `feature/redis-collapsible-infobox`, which was then merged (no-ff) into `dev`. `master` has not been updated and is intentionally behind.
+**Active branch:** `dev` — created from `master` and contains all merged feature work. `feature/navigation-trail` → `feature/redis-collapsible-infobox` → `dev` (previous sessions). `voice` branch merged (no-ff) into `dev` this session. `master` has not been updated and is intentionally behind.
 
 ---
 
@@ -102,6 +102,16 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
 - **`NavigationTrail`** (`components/NavigationTrail.tsx`): horizontal strip rendered below `RoomBar` showing every article the room has visited, chevron-separated. The current entry is styled distinctly and non-interactive; past entries are buttons that delegate to `handleWikiLinkClick` (same path wiki-link clicks use — broadcasts `navigate` and optimistically loads). Horizontal scrolls on overflow with the rightmost entry pinned visible (`scrollLeft = scrollWidth` on trail change). An **Export** button is pinned to the right (outside the scroll area) — clicking it copies the trail to clipboard as arrow-separated article titles (`Title A → Title B → Title C`) with 2s "Copied!" feedback. `slugToLabel` (exported) converts `Foo_Bar` → `Foo Bar` for display; `buildExportText` (exported) generates the clipboard text from a slug array.
 - **`ConnectionBanner`** (`components/ConnectionBanner.tsx`): shown when WS retries are exhausted, with a retry button.
 
+### Voice chat (`apps/web/lib/voiceChatSession.ts`, `hooks/useVoiceChat.ts`)
+- **`VoiceChatSession`** — plain class (no React) managing the full WebRTC lifecycle: `getUserMedia`, `RTCPeerConnection`, ICE candidate queuing, speaking detection via `AudioContext` + `AnalyserNode`, and `leave()` cleanup.
+- **Signaling** — offer/answer/ICE candidates are sent as `ClientMessage` via the existing WS connection (`sendSignal`). The WS server relays voice messages (`voice-offer`, `voice-answer`, `voice-ice`, `voice-state`) to all other room members.
+- **Glare handling** — `buildPc()` closes and replaces any existing `RTCPeerConnection` when a second negotiation starts (both peers click "Join" simultaneously). `handleAnswer` guards on `signalingState === 'have-local-offer'` to avoid `DOMException` on the orphaned PC.
+- **ICE queuing** — candidates that arrive before the remote description is set are queued and drained in `drainCandidates()` after `setRemoteDescription`.
+- **Speaking detection** — RAF loop reads `AnalyserNode` RMS each frame; emits only when `speaking`/`remoteSpeaking` values actually change (change-gated to avoid 60fps React re-renders that were breaking article link clicks and causing Safari image flash).
+- **Remote audio playback** — remote track is routed `source → remoteAnalyser → audioCtx.destination` so it's both analysed and played back through speakers.
+- **`useVoiceChat`** hook — React wrapper; holds `VoiceChatSession` in a ref, exposes `join/leave/toggleMute/handleSignal`. Stores a `pendingOfferRef` for offers that arrive before the user clicks "Join".
+- **`RoomBar` voice controls** — Join/Mute/Leave buttons + speaking indicators (pulsing dot for local, ring for remote). Permission-denied error state shown inline.
+
 ---
 
 ## Key design decisions worth knowing
@@ -125,7 +135,6 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
 ## What's not built yet
 
 ### High priority
-- **Voice chat (WebRTC)** — Simple peer-to-peer voice between room participants using WebRTC. The WS server can act as a signaling channel (offer/answer/ICE candidate messages routed by room ID). No media server needed for small rooms; keep it minimal — mute toggle and a visual indicator of who's speaking are enough.
 - **First-article latency** — The initial article load is the slowest part of the experience. Investigate caching at the proxy layer (e.g. persisting processed HTML rather than re-running `processArticle` on every request), CDN edge caching, and whether the Wikipedia API call can be prefetched or warmed server-side at room creation. Perceived latency can also be reduced with a skeleton/shimmer placeholder while the fetch is in flight.
 - ~~**Exportable navigation trail**~~ — Done. Export button in `NavigationTrail` copies trail as arrow-separated titles to clipboard.
 
@@ -152,4 +161,5 @@ Note: `output: 'standalone'` was tried and removed — Next.js standalone mode d
   - `processArticle` (link rewriting, sanitization, filtering, lazy image loading, srcset stripping, data-src promotion, span-to-img conversion, same-page fragment links, wh-thumb figure transform, thumbnail hoisting, infobox hoisting and split-table cluster capture, PCS collapsible-table chrome removal)
   - `articleCache` (proxy-side LRU cache + single-flight)
   - `NavigationTrail` (`slugToLabel` slug-to-display helper)
+  - `VoiceChatSession` (join/offer/answer/ICE/mute/leave lifecycle, glare guard, speaking-detection change-gating)
 - No integration tests, no E2E tests
